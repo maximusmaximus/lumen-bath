@@ -1,0 +1,259 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #071016;
+  --color-surface: #122028;
+  --color-surface-2: #1a2c36;
+  --color-fg: #e8f1ec;
+  --color-muted: #8ea399;
+  --color-gold: #d7b56d;
+  --color-line: #2a3e49;
+  --color-shadow: #03070a;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cormorant Garamond", "Times New Roman", serif;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-bg);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100%;
+    overflow: hidden;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+
+  input[type="range"] {
+    accent-color: var(--color-gold);
+  }
+
+  select {
+    color-scheme: dark;
+  }
+}
+
+.floor {
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 0 17.5%,
+      color-mix(in oklab, var(--color-line) 55%, transparent) 17.7%,
+      transparent 18%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 0 34%,
+      color-mix(in oklab, var(--color-line) 45%, transparent) 34.2%,
+      transparent 34.55%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 0 52%,
+      color-mix(in oklab, var(--color-line) 35%, transparent) 52.2%,
+      transparent 52.55%
+    );
+  touch-action: none;
+}
+
+.floor-glow {
+  background: radial-gradient(
+    circle at 50% 52%,
+    color-mix(in oklab, var(--color-gold) 22%, transparent),
+    transparent 46%
+  );
+  opacity: calc(0.18 + var(--energy, 0) * 0.7);
+}
+
+.floor-vignette {
+  background: radial-gradient(circle at 50% 48%, transparent 42%, var(--color-bg) 100%);
+  opacity: 0.55;
+}
+
+.bowl {
+  position: absolute;
+  width: calc(5.25rem + var(--span) * 8.5rem);
+  height: calc(5.25rem + var(--span) * 8.5rem);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  --glass: #38bdf8;
+  --glass-deep: #0c4a6e;
+  --rim: #e0f2fe;
+  background-color: var(--glass-deep);
+  background-image:
+    radial-gradient(circle at 30% 22%, color-mix(in oklab, white 80%, var(--rim)), transparent 20%),
+    radial-gradient(circle at 72% 78%, color-mix(in oklab, var(--glass) 35%, transparent), transparent 28%),
+    radial-gradient(circle at 50% 48%, var(--glass) 0 46%, var(--glass-deep) 78%);
+  box-shadow:
+    inset 0 0 0 3px color-mix(in oklab, var(--rim) 75%, white),
+    inset 0 14px 18px color-mix(in oklab, white 35%, transparent),
+    inset 0 -18px 24px color-mix(in oklab, black 35%, var(--glass-deep)),
+    0 0 28px color-mix(in oklab, var(--glass) 55%, transparent),
+    0 14px 24px color-mix(in oklab, var(--color-shadow) 55%, transparent);
+  user-select: none;
+  touch-action: none;
+}
+
+.bowl[data-glass="quartz"] {
+  --glass: #38bdf8;
+  --glass-deep: #075985;
+  --rim: #e0f2fe;
+}
+.bowl[data-glass="frosted"] {
+  --glass: #93c5fd;
+  --glass-deep: #1e3a8a;
+  --rim: #eff6ff;
+}
+.bowl[data-glass="gold"] {
+  --glass: #f5b942;
+  --glass-deep: #92400e;
+  --rim: #fff3d1;
+}
+.bowl[data-glass="platinum"] {
+  --glass: #cbd5e1;
+  --glass-deep: #334155;
+  --rim: #f8fafc;
+}
+.bowl[data-glass="rose"] {
+  --glass: #fb7185;
+  --glass-deep: #9f1239;
+  --rim: #ffe4e6;
+}
+.bowl[data-glass="obsidian"] {
+  --glass: #8b5cf6;
+  --glass-deep: #2e1065;
+  --rim: #ede9fe;
+}
+.bowl[data-glass="aqua"] {
+  --glass: #2dd4bf;
+  --glass-deep: #115e59;
+  --rim: #ccfbf1;
+}
+.bowl[data-glass="emerald"] {
+  --glass: #34d399;
+  --glass-deep: #065f46;
+  --rim: #d1fae5;
+}
+.bowl[data-glass="phantom"] {
+  --glass: #c084fc;
+  --glass-deep: #581c87;
+  --rim: #f3e8ff;
+}
+.bowl[data-glass="selenite"] {
+  --glass: #fbbf24;
+  --glass-deep: #92400e;
+  --rim: #fef3c7;
+}
+
+.bowl[data-selected="true"] {
+  z-index: 5;
+  box-shadow:
+    inset 0 0 0 2px var(--color-gold),
+    inset 0 14px 22px color-mix(in oklab, var(--color-fg) 24%, transparent),
+    inset 0 -20px 28px color-mix(in oklab, var(--color-shadow) 55%, transparent),
+    0 0 0 7px color-mix(in oklab, var(--color-gold) 28%, transparent),
+    0 16px 32px color-mix(in oklab, var(--color-shadow) 65%, transparent);
+}
+
+.bowl-shine {
+  position: absolute;
+  top: 14%;
+  left: 22%;
+  width: 34%;
+  height: 18%;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-fg) 55%, transparent);
+  transform: rotate(-18deg);
+  pointer-events: none;
+}
+
+.bowl-orbit {
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 1px dashed color-mix(in oklab, var(--color-gold) 65%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.floor[data-live="true"] .bowl[data-selected="true"] .bowl-orbit {
+  opacity: 0.85;
+  animation: bowl-spin var(--spin, 16s) linear infinite;
+}
+
+.bowl-note {
+  font-family: var(--font-display);
+  font-size: calc(0.95rem + var(--span) * 0.55rem);
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: var(--color-fg);
+  background: color-mix(in oklab, var(--color-bg) 62%, transparent);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+}
+
+@keyframes bowl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.modal-sheet {
+  position: fixed;
+  z-index: 50;
+  top: 4rem;
+  bottom: 1rem;
+  left: 50%;
+  display: flex;
+  width: min(36rem, calc(100% - 1.5rem));
+  transform: translateX(-50%);
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+
+audio[data-lumen] {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 700px) {
+  .bowl {
+    width: calc(3.35rem + var(--span) * 4.6rem);
+    height: calc(3.35rem + var(--span) * 4.6rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bowl-orbit {
+    animation: none !important;
+  }
+}
