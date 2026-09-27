@@ -34,7 +34,17 @@ const b = (
   y: number,
   gain = 0.78,
   sing = 0.28,
-): PresetBowl => ({ frequency, size, glass, x, y, gain, sing });
+  height?: number,
+): PresetBowl => ({
+  frequency,
+  size,
+  height: height ?? Math.min(1, Math.max(0.22, 0.3 + size * 0.48)),
+  glass,
+  x,
+  y,
+  gain,
+  sing,
+});
 
 export const PRESETS: Preset[] = [
   {
@@ -43,12 +53,13 @@ export const PRESETS: Preset[] = [
     blurb: "Om at 136.1 Hz with a twin a fraction sharp, so the beat is written into the glass, plus the fifth and octave.",
     tags: ["Rose quartz", "Composed beat", "Sustain"],
     settings: { loopMode: "continuous", veil: 0, shimmer: 0.34, wet: 0.18, hall: 0.46, width: 0.7, air: 0.1 },
+    receiver: { x: 0.62, y: 0.86, height: 0.64 },
     bowls: [
-      b(136.1, 0.92, "rose", 0.3, 0.56, 0.86, 0.22),
-      b(136.52, 0.74, "rose", 0.52, 0.34, 0.72, 0.26),
-      b(204.15, 0.64, "rose", 0.2, 0.7, 0.64, 0.3),
-      b(272.2, 0.52, "selenite", 0.66, 0.6, 0.52, 0.34),
-      b(340.25, 0.42, "rose", 0.42, 0.18, 0.46, 0.38),
+      b(136.1, 0.92, "rose", 0.3, 0.56, 0.86, 0.22, 0.4),
+      b(136.52, 0.74, "rose", 0.52, 0.34, 0.72, 0.26, 0.82),
+      b(204.15, 0.64, "rose", 0.2, 0.7, 0.64, 0.3, 0.55),
+      b(272.2, 0.52, "selenite", 0.66, 0.6, 0.52, 0.34, 0.9),
+      b(340.25, 0.42, "rose", 0.42, 0.18, 0.46, 0.38, 0.28),
     ],
   },
   {

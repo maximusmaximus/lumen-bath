@@ -12,8 +12,9 @@ import {
   getPreset,
   instantiatePreset,
 } from "@/lib/audio/presets";
-import type { Bowl, Settings, Soundscape } from "@/lib/audio/types";
+import type { Bowl, Receiver, Settings, Soundscape } from "@/lib/audio/types";
 import { MAX_BOWLS, MIN_BOWLS } from "@/lib/audio/types";
+import { DEFAULT_RECEIVER, defaultHeight } from "@/lib/audio/space";
 
 const STORAGE_KEY = "lumen-bath-v1";
 
@@ -26,6 +27,7 @@ type Persisted = {
   settings: Settings;
   library: Soundscape[];
   selectedId: string | null;
+  receiver: Receiver;
 };
 
 type BathState = {
@@ -36,11 +38,13 @@ type BathState = {
   activeName: string | null;
   selectedId: string | null;
   library: Soundscape[];
+  receiver: Receiver;
   playing: boolean;
   notice: string | null;
   hydrated: boolean;
   select: (id: string) => void;
   move: (id: string, x: number, y: number) => void;
+  moveReceiver: (x: number, y: number, height?: number) => void;
   updateBowl: (id: string, patch: Partial<Omit<Bowl, "id">>) => void;
   addBowl: () => void;
   removeBowl: (id: string) => void;
@@ -87,6 +91,27 @@ function isBowl(value: unknown): value is Bowl {
   );
 }
 
+function normalizeBowl(bowl: Bowl): Bowl {
+  const size = Math.min(1, Math.max(0.36, bowl.size));
+  const raw = bowl.height;
+  const height =
+    typeof raw === "number" && Number.isFinite(raw) ? Math.min(1, Math.max(0.22, raw)) : defaultHeight(size);
+  return { ...bowl, size, height };
+}
+
+function normalizeReceiver(value: unknown): Receiver {
+  if (!value || typeof value !== "object") return { ...DEFAULT_RECEIVER };
+  const receiver = value as Receiver;
+  if (typeof receiver.x !== "number" || typeof receiver.y !== "number" || typeof receiver.height !== "number") {
+    return { ...DEFAULT_RECEIVER };
+  }
+  return {
+    x: Math.min(0.96, Math.max(0.04, receiver.x)),
+    y: Math.min(0.96, Math.max(0.04, receiver.y)),
+    height: Math.min(1, Math.max(0, receiver.height)),
+  };
+}
+
 function isSoundscape(value: unknown): value is Soundscape {
   if (!value || typeof value !== "object") return false;
   const item = value as Soundscape;
@@ -109,6 +134,7 @@ export const useBath = create<BathState>((set, get) => ({
   activeName: null,
   selectedId: initial.bowls[0]?.id ?? null,
   library: [],
+  receiver: initial.preset.receiver ? { ...initial.preset.receiver } : { ...DEFAULT_RECEIVER },
   playing: false,
   notice: null,
   hydrated: false,
@@ -125,6 +151,16 @@ export const useBath = create<BathState>((set, get) => ({
       ),
     })),
 
+  moveReceiver: (x, y, height) =>
+    set((state) => ({
+      presetId: null,
+      receiver: {
+        x: Math.min(0.96, Math.max(0.04, x)),
+        y: Math.min(0.96, Math.max(0.04, y)),
+        height: height === undefined ? state.receiver.height : Math.min(1, Math.max(0, height)),
+      },
+    })),
+
   updateBowl: (id, patch) =>
     set((state) => ({
       presetId: null,
@@ -136,6 +172,7 @@ export const useBath = create<BathState>((set, get) => ({
               frequency:
                 patch.frequency === undefined ? bowl.frequency : Math.round(clampHz(patch.frequency) * 100) / 100,
               size: patch.size === undefined ? bowl.size : Math.min(1, Math.max(0.36, patch.size)),
+              height: patch.height === undefined ? bowl.height : Math.min(1, Math.max(0.22, patch.height)),
               gain: patch.gain === undefined ? bowl.gain : Math.min(1, Math.max(0.05, patch.gain)),
               sing: patch.sing === undefined ? bowl.sing : Math.min(1, Math.max(0, patch.sing)),
             }
@@ -154,6 +191,7 @@ export const useBath = create<BathState>((set, get) => ({
       id: crypto.randomUUID(),
       frequency: suggestFrequency(bowls),
       size: 0.58,
+      height: 0.56,
       glass: "quartz",
       gain: 0.72,
       x: spot.x,
@@ -200,6 +238,7 @@ export const useBath = create<BathState>((set, get) => ({
       originPresetId: preset.id,
       activeName: null,
       selectedId: next.bowls[0]?.id ?? null,
+      receiver: next.preset.receiver ? { ...next.preset.receiver } : { ...DEFAULT_RECEIVER },
       notice: null,
     });
   },
@@ -221,6 +260,7 @@ export const useBath = create<BathState>((set, get) => ({
       updatedAt: Date.now(),
       bowls: bowls.map((bowl) => ({ ...bowl })),
       settings: { ...settings },
+      receiver: { ...get().receiver },
     };
     const next = existing
       ? library.map((item) => (item.id === existing.id ? entry : item))
@@ -232,8 +272,9 @@ export const useBath = create<BathState>((set, get) => ({
     const item = get().library.find((entry) => entry.id === id);
     if (!item) return;
     set({
-      bowls: item.bowls.map((bowl) => ({ ...bowl })),
+      bowls: item.bowls.map((bowl) => normalizeBowl(bowl)),
       settings: { ...DEFAULT_SETTINGS, ...item.settings },
+      receiver: normalizeReceiver(item.receiver),
       selectedId: item.bowls[0]?.id ?? null,
       presetId: null,
       originPresetId: null,
@@ -285,11 +326,12 @@ export const useBath = create<BathState>((set, get) => ({
       }
       const library = Array.isArray(parsed.library) ? parsed.library.filter(isSoundscape) : [];
       set({
-        bowls: parsed.bowls,
+        bowls: parsed.bowls.map((bowl) => normalizeBowl(bowl)),
         settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
         presetId: parsed.presetId,
         originPresetId: parsed.originPresetId,
         activeName: parsed.activeName,
+        receiver: normalizeReceiver(parsed.receiver),
         selectedId: parsed.selectedId && parsed.bowls.some((bowl) => bowl.id === parsed.selectedId) ? parsed.selectedId : parsed.bowls[0]?.id ?? null,
         library,
         hydrated: true,
@@ -315,6 +357,7 @@ export function bindBathPersistence(): () => void {
         settings: state.settings,
         library: state.library,
         selectedId: state.selectedId,
+        receiver: state.receiver,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
     }, 200);

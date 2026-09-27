@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { ChevronUp, Library, Pause, Play, Settings, Volume2 } from "lucide-react";
+import { ChevronUp, Circle, Library, Pause, Play, Settings, Volume2 } from "lucide-react";
 import { LibraryDialog, PresetDialog, SettingsDialog } from "@/components/dialogs";
 import { Inspector } from "@/components/inspector";
 import { Stage } from "@/components/stage";
+import { projectChamber } from "@/components/chamber";
 import { bathEngine } from "@/lib/audio/engine";
 import { GLASS } from "@/lib/audio/glass";
 import { describePitch, shortNote } from "@/lib/audio/notes";
@@ -16,19 +17,21 @@ export function BathApp() {
   const activeName = useBath((state) => state.activeName);
   const selectedId = useBath((state) => state.selectedId);
   const notice = useBath((state) => state.notice);
+  const receiver = useBath((state) => state.receiver);
   const hydrate = useBath((state) => state.hydrate);
   const setSettings = useBath((state) => state.setSettings);
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const [recording, setRecording] = useState(false);
 
   const title = soundscapeTitle({ activeName, presetId });
   const selected = bowls.find((bowl) => bowl.id === selectedId) ?? bowls[0];
 
   async function begin() {
     const state = useBath.getState();
-    await bathEngine.startFromGesture(state.bowls, state.settings, soundscapeTitle(state));
+    await bathEngine.startFromGesture(state.bowls, state.settings, soundscapeTitle(state), state.receiver);
     const audible = bathEngine.isRunning() && bathEngine.contextState() === "running";
     useBath.getState().setPlaying(audible);
     return audible;
@@ -45,7 +48,7 @@ export function BathApp() {
     bathEngine.onTransport = (next) => {
       const state = useBath.getState();
       if (next && !bathEngine.isRunning()) {
-        bathEngine.startFromGesture(state.bowls, state.settings, soundscapeTitle(state));
+        bathEngine.startFromGesture(state.bowls, state.settings, soundscapeTitle(state), state.receiver);
       }
       if (!next && bathEngine.isRunning()) bathEngine.stop();
       useBath.setState({ playing: next });
@@ -59,6 +62,9 @@ export function BathApp() {
         energy: () => number;
         fundHz: (id?: string) => number | null;
         context: () => string;
+        listener: () => { x: number; y: number; z: number };
+        project: () => ReturnType<typeof projectChamber>;
+        recording: () => boolean;
       };
     };
     debug.__lumen = {
@@ -67,6 +73,23 @@ export function BathApp() {
       energy: () => bathEngine.readEnergy(),
       fundHz: (id?: string) => bathEngine.fundHz(id),
       context: () => bathEngine.contextState(),
+      listener: () => bathEngine.listenerNow(),
+      project: () => projectChamber(),
+      recording: () => bathEngine.isRecording(),
+    };
+    bathEngine.onRecorded = (blob, ext) => {
+      const slug = soundscapeTitle(useBath.getState())
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${slug || "lumen-bath"}.${ext}`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setRecording(false);
+      useBath.getState().setNotice("Saved a recording from the ear.");
     };
     const kick = () => begin();
     const timer = window.setTimeout(kick, 60);
@@ -76,15 +99,16 @@ export function BathApp() {
       bathEngine.onTransport = null;
       bathEngine.onNotice = null;
       bathEngine.onOutput = null;
+      bathEngine.onRecorded = null;
       bathEngine.stop();
     };
   }, [hydrate]);
 
   useEffect(() => {
     const label = soundscapeTitle({ activeName, presetId });
-    bathEngine.remember(bowls, settings, label);
-    if (playing && bathEngine.isRunning()) bathEngine.sync(bowls, settings, label);
-  }, [bowls, settings, playing, activeName, presetId]);
+    bathEngine.remember(bowls, settings, label, receiver);
+    if (playing && bathEngine.isRunning()) bathEngine.sync(bowls, settings, label, receiver);
+  }, [bowls, settings, playing, activeName, presetId, receiver]);
 
   useEffect(() => {
     if (!notice) return;
@@ -138,6 +162,17 @@ export function BathApp() {
         if (useBath.getState().playing) pause();
         else begin();
       }
+      if (event.key.startsWith("Arrow")) {
+        const state = useBath.getState();
+        const bowl = state.bowls.find((item) => item.id === state.selectedId);
+        if (!bowl) return;
+        const step = event.shiftKey ? 0.04 : 0.015;
+        event.preventDefault();
+        if (event.key === "ArrowLeft") state.move(bowl.id, bowl.x - step, bowl.y);
+        if (event.key === "ArrowRight") state.move(bowl.id, bowl.x + step, bowl.y);
+        if (event.key === "ArrowUp") state.move(bowl.id, bowl.x, bowl.y - step);
+        if (event.key === "ArrowDown") state.move(bowl.id, bowl.x, bowl.y + step);
+      }
       if (event.key === "Backspace" || event.key === "Delete") {
         const id = useBath.getState().selectedId;
         if (id) useBath.getState().removeBowl(id);
@@ -150,6 +185,19 @@ export function BathApp() {
   function togglePlay() {
     if (useBath.getState().playing) pause();
     else begin();
+  }
+
+  async function toggleRecord() {
+    if (bathEngine.isRecording()) {
+      bathEngine.stopRecording();
+      return;
+    }
+    if (!bathEngine.isRunning() || bathEngine.contextState() !== "running") {
+      const ok = await begin();
+      if (!ok) return;
+    }
+    await bathEngine.startRecording();
+    setRecording(bathEngine.isRecording());
   }
 
   const pitch = selected ? describePitch(selected.frequency) : null;
@@ -168,6 +216,17 @@ export function BathApp() {
         >
           {playing ? <Pause className="size-5" /> : <Play className="size-5" />}
           {playing ? "Pause" : "Play"}
+        </button>
+        <button
+          type="button"
+          data-transport
+          className="inline-flex h-12 shrink-0 items-center gap-2 rounded-full border border-gold px-3 text-sm font-medium text-fg"
+          onClick={() => void toggleRecord()}
+          aria-pressed={recording}
+          aria-label={recording ? "Stop recording the ear" : "Record the ear"}
+        >
+          <Circle className={`size-3 ${recording ? "fill-red-500 text-red-500" : "fill-transparent"}`} />
+          <span className="hidden sm:inline">{recording ? "Stop" : "Record"}</span>
         </button>
         <button
           type="button"

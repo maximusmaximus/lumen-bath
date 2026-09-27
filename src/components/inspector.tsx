@@ -78,7 +78,7 @@ export function Inspector() {
         </p>
       ) : null}
       <Slider
-        label="Size"
+        label="Width"
         min={36}
         max={100}
         step={1}
@@ -87,7 +87,19 @@ export function Inspector() {
         onChange={(value) => updateBowl(bowl.id, { size: value / 100 })}
       />
       <p className="text-pretty text-xs text-muted">
-        Size warms the voice and slows the rim. Pitch stays where you set it.
+        Diameter. Wider glass is warmer, louder up close, and carries farther. Pitch stays where you set it.
+      </p>
+      <Slider
+        label="Height"
+        min={22}
+        max={100}
+        step={1}
+        value={Math.round(bowl.height * 100)}
+        display={`${Math.round(bowl.height * 100)}`}
+        onChange={(value) => updateBowl(bowl.id, { height: value / 100 })}
+      />
+      <p className="text-pretty text-xs text-muted">
+        Wall height. Taller glass lifts the tone in the room and leans on the fundamental.
       </p>
       <Slider
         label="Level"

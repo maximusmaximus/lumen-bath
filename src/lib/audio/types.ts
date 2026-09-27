@@ -23,6 +23,7 @@ export type Bowl = {
   id: string;
   frequency: number;
   size: number;
+  height: number;
   glass: GlassId;
   gain: number;
   x: number;
@@ -64,6 +65,13 @@ export type Preset = {
   tags: string[];
   bowls: PresetBowl[];
   settings: Partial<MusicalSettings>;
+  receiver?: Receiver;
+};
+
+export type Receiver = {
+  x: number;
+  y: number;
+  height: number;
 };
 
 export type Soundscape = {
@@ -72,4 +80,5 @@ export type Soundscape = {
   updatedAt: number;
   bowls: Bowl[];
   settings: Settings;
+  receiver?: Receiver;
 };

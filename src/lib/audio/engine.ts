@@ -1,5 +1,7 @@
 import { GLASS } from "@/lib/audio/glass";
-import type { Bowl, LoopMode, OutputMode, Settings } from "@/lib/audio/types";
+import { bowlPoint, DEFAULT_RECEIVER, receiverPoint } from "@/lib/audio/space";
+import type { Bowl, LoopMode, OutputMode, Receiver, Settings } from "@/lib/audio/types";
+import { concatFloats, encodeWav } from "@/lib/audio/wav";
 
 const MAX_PARTIALS = 4;
 
@@ -9,9 +11,9 @@ type Voice = {
   level: GainNode;
   singGain: GainNode;
   phraseGain: GainNode;
-  delay: DelayNode;
-  panner: StereoPannerNode;
+  panner: PannerNode;
   fund: OscillatorNode;
+  fundGain: GainNode;
   partials: OscillatorNode[];
   partialGains: GainNode[];
   shadow: OscillatorNode;
@@ -121,10 +123,24 @@ export class BathEngine {
   private label = "Lumen Bath";
   private mediaHooked = false;
   private playToken = 0;
-  private latest: { bowls: Bowl[]; settings: Settings; label: string } | null = null;
+  private latest: { bowls: Bowl[]; settings: Settings; label: string; receiver: Receiver } | null = null;
+  private receiver: Receiver = { ...DEFAULT_RECEIVER };
+  private listenerAt = { x: 0, y: 1.3, z: 2 };
+  private recording = false;
+  private recordMode: "wav" | "webm" | null = null;
+  private recordLeft: Float32Array[] = [];
+  private recordRight: Float32Array[] = [];
+  private recordSamples = 0;
+  private recordRate = 48000;
+  private recordNode: AudioWorkletNode | null = null;
+  private recordSink: GainNode | null = null;
+  private mediaRecorder: MediaRecorder | null = null;
+  private mediaChunks: Blob[] = [];
+  private mediaDest: MediaStreamAudioDestinationNode | null = null;
   onTransport: ((playing: boolean) => void) | null = null;
   onNotice: ((message: string) => void) | null = null;
   onOutput: ((mode: OutputMode) => void) | null = null;
+  onRecorded: ((blob: Blob, ext: string) => void) | null = null;
 
   isRunning(): boolean {
     return this.running;
@@ -159,13 +175,27 @@ export class BathEngine {
     return Math.min(1, Math.sqrt(sum / this.timeBuf.length) * 3.4);
   }
 
-  remember(bowls: Bowl[], settings: Settings, label: string): void {
-    this.latest = { bowls, settings, label };
+  listenerNow(): { x: number; y: number; z: number } {
+    return { ...this.listenerAt };
+  }
+
+  isRecording(): boolean {
+    return this.recording;
+  }
+
+  remember(bowls: Bowl[], settings: Settings, label: string, receiver: Receiver = this.receiver): void {
+    this.latest = { bowls, settings, label, receiver };
+    this.receiver = receiver;
     this.label = label;
     if (this.running) this.publishSession();
   }
 
-  startFromGesture(bowls: Bowl[], settings: Settings, label: string): Promise<void> {
+  startFromGesture(
+    bowls: Bowl[],
+    settings: Settings,
+    label: string,
+    receiver: Receiver = this.receiver,
+  ): Promise<void> {
     try {
       this.life += 1;
       if (!this.ctx) this.createGraph();
@@ -174,7 +204,8 @@ export class BathEngine {
       this.running = true;
       this.volume = settings.volume;
       this.label = label;
-      this.latest = { bowls, settings, label };
+      this.receiver = receiver;
+      this.latest = { bowls, settings, label, receiver };
       this.hookOutput(settings.output);
       this.hookMediaSession();
       this.publishSession();
@@ -182,7 +213,7 @@ export class BathEngine {
       this.master!.gain.cancelScheduledValues(now);
       this.master!.gain.setValueAtTime(0.0001, now);
       this.master!.gain.linearRampToValueAtTime(Math.max(0.0001, settings.volume), now + 0.08);
-      this.sync(bowls, settings, label);
+      this.sync(bowls, settings, label, receiver);
       return pending.then(() => undefined);
     } catch (error) {
       this.running = false;
@@ -214,11 +245,12 @@ export class BathEngine {
     this.hookOutput(mode);
   }
 
-  sync(bowls: Bowl[], settings: Settings, label: string): void {
+  sync(bowls: Bowl[], settings: Settings, label: string, receiver: Receiver = this.receiver): void {
     if (!this.running || !this.ctx || !this.master || !this.wet || !this.air) return;
     this.label = label;
+    this.receiver = receiver;
+    this.latest = { bowls, settings, label, receiver };
     this.volume = settings.volume;
-    const now = this.ctx.currentTime;
     if (!this.dipping) this.approach(this.master.gain, Math.max(0.0001, settings.volume), 0.06);
     this.updateHall(settings.hall);
     this.approach(this.wet.gain, Math.max(0, Math.min(0.8, settings.wet)), 0.08);
@@ -226,6 +258,7 @@ export class BathEngine {
     if (settings.output !== this.output && !(settings.output === "session" && this.sessionBlocked)) {
       this.hookOutput(settings.output);
     }
+    this.placeListener(settings, receiver);
     this.updateBed(settings);
     this.reconcile(bowls, settings);
     this.refreshEnvelope(settings, bowls);
@@ -340,7 +373,7 @@ export class BathEngine {
       navigator.mediaSession.setActionHandler("play", () => {
         if (!this.running && this.latest) {
           this.sessionBlocked = false;
-          this.startFromGesture(this.latest.bowls, this.latest.settings, this.latest.label);
+          this.startFromGesture(this.latest.bowls, this.latest.settings, this.latest.label, this.latest.receiver);
         }
         this.onTransport?.(true);
       });
@@ -438,9 +471,18 @@ export class BathEngine {
     singGain.gain.value = 1;
     const phraseGain = ctx.createGain();
     phraseGain.gain.value = 0;
-    const delay = ctx.createDelay(0.05);
-    delay.delayTime.value = 0;
-    const panner = ctx.createStereoPanner();
+    const panner = ctx.createPanner();
+    panner.panningModel = "HRTF";
+    panner.distanceModel = "inverse";
+    panner.refDistance = 1.4;
+    panner.maxDistance = 48;
+    panner.rolloffFactor = 0.75;
+    panner.coneInnerAngle = 210;
+    panner.coneOuterAngle = 360;
+    panner.coneOuterGain = 0.78;
+    panner.orientationX.value = 0;
+    panner.orientationY.value = 1;
+    panner.orientationZ.value = 0;
     const fund = ctx.createOscillator();
     fund.type = "sine";
     const fundGain = ctx.createGain();
@@ -495,8 +537,7 @@ export class BathEngine {
     mix.connect(level);
     level.connect(singGain);
     singGain.connect(phraseGain);
-    phraseGain.connect(delay);
-    delay.connect(panner);
+    phraseGain.connect(panner);
     panner.connect(this.bus!);
     const when = ctx.currentTime + 0.02;
     for (const osc of oscs) osc.start(when);
@@ -509,9 +550,9 @@ export class BathEngine {
       level,
       singGain,
       phraseGain,
-      delay,
       panner,
       fund,
+      fundGain,
       partials,
       partialGains,
       shadow,
@@ -533,7 +574,9 @@ export class BathEngine {
     const fundHz = tuned(bowl.frequency, settings.transpose);
     this.approach(voice.fund.frequency, fundHz, 0.045);
     const glass = GLASS[bowl.glass];
-    const brightness = 1.15 - bowl.size * 0.62;
+    const width = Math.min(1, Math.max(0.36, bowl.size));
+    const height = Math.min(1, Math.max(0.22, Number.isFinite(bowl.height) ? bowl.height : 0.5));
+    const brightness = 1.08 - width * 0.5 + (1 - height) * 0.26;
     for (let i = 0; i < MAX_PARTIALS; i++) {
       const partial = glass.partials[i];
       const gain = voice.partialGains[i]!;
@@ -548,7 +591,8 @@ export class BathEngine {
         continue;
       }
       this.approach(osc.frequency, freq, 0.045);
-      this.approach(gain.gain, partial.gain * brightness, 0.08);
+      const band = partial.ratio < 2.5 ? 1 : 0.42 + (1 - height) * 0.75;
+      this.approach(gain.gain, partial.gain * brightness * band, 0.08);
     }
     const beat = Math.max(0.08, settings.veilHz) * voice.beatMul;
     this.approach(voice.shadow.frequency, Math.min(nyquist, fundHz + beat), 0.05);
@@ -565,20 +609,23 @@ export class BathEngine {
       this.approach(voice.shimmer[index]!.frequency, freq, 0.05);
       this.approach(gainNode.gain, settings.shimmer * shimAmps[index]! * brightness, 0.08);
     });
-    const depth = bowl.sing * 0.18 * (0.7 + bowl.size * 0.45);
+    const depth = bowl.sing * 0.18 * (0.62 + height * 0.55 + width * 0.12);
     this.approach(voice.modDepth.gain, depth, 0.12);
-    const rub = Math.max(0.05, (0.07 + bowl.sing * 0.48) * (1.45 - bowl.size * 0.7));
+    const rub = Math.max(0.05, (0.07 + bowl.sing * 0.48) * (1.55 - height * 0.7));
     this.approach(voice.singLfo.frequency, rub, 0.2);
     this.approach(voice.driftDepth.gain, 1.1 + bowl.sing * 4.2, 0.2);
     const active = Math.max(1, count);
     const head = 0.5 / Math.sqrt(active);
-    const sizeLoud = 0.78 + bowl.size * 0.32;
+    const sizeLoud = 0.68 + width * 0.24 + height * 0.18;
     const level = bowl.muted ? 0 : bowl.gain * sizeLoud * head;
     this.approach(voice.level.gain, level, 0.05);
-    const pan = Math.max(-1, Math.min(1, (bowl.x - 0.5) * 2 * settings.width));
-    this.approach(voice.panner.pan, pan, 0.03);
-    const delay = Math.max(0, Math.min(0.02, bowl.y * settings.depth * 0.016));
-    this.approach(voice.delay.delayTime, delay, 0.05);
+    this.approach(voice.fundGain.gain, 0.46 + height * 0.46 + width * 0.06, 0.08);
+    const placed = bowlPoint({ x: bowl.x, y: bowl.y, size: width, height }, settings);
+    this.approach(voice.panner.positionX, placed.x, 0.025);
+    this.approach(voice.panner.positionY, placed.y, 0.025);
+    this.approach(voice.panner.positionZ, placed.z, 0.025);
+    voice.panner.refDistance = 0.75 + width * 1.55;
+    voice.panner.rolloffFactor = Math.max(0.3, 1.1 - width * 0.58);
   }
 
   private releaseVoice(voice: Voice): void {
@@ -809,6 +856,131 @@ export class BathEngine {
       this.bedR = null;
       this.bedGain = null;
     }
+  }
+
+  private placeListener(settings: Settings, receiver: Receiver): void {
+    if (!this.ctx) return;
+    const placed = receiverPoint(receiver, settings);
+    this.listenerAt = placed;
+    const listener = this.ctx.listener;
+    if (!listener.positionX) return;
+    this.approach(listener.positionX, placed.x, 0.02);
+    this.approach(listener.positionY, placed.y, 0.02);
+    this.approach(listener.positionZ, placed.z, 0.02);
+    const mag = Math.hypot(placed.x, placed.z);
+    const forwardX = mag < 0.001 ? 0 : -placed.x / mag;
+    const forwardZ = mag < 0.001 ? -1 : -placed.z / mag;
+    this.approach(listener.forwardX, forwardX, 0.04);
+    this.approach(listener.forwardY, 0, 0.04);
+    this.approach(listener.forwardZ, forwardZ, 0.04);
+    this.approach(listener.upX, 0, 0.04);
+    this.approach(listener.upY, 1, 0.04);
+    this.approach(listener.upZ, 0, 0.04);
+  }
+
+  async startRecording(): Promise<void> {
+    if (this.recording) return;
+    if (!this.ctx || !this.master || !this.running) {
+      this.onNotice?.("Press play, then record. The file is whatever the ear hears.");
+      return;
+    }
+    this.recordRate = this.ctx.sampleRate;
+    try {
+      await this.ensureWorklet();
+      this.recordLeft = [];
+      this.recordRight = [];
+      this.recordSamples = 0;
+      this.recordMode = "wav";
+      this.recording = true;
+    } catch {
+      this.startMediaRecording();
+    }
+  }
+
+  stopRecording(): void {
+    if (!this.recording && this.recordSamples === 0 && this.mediaRecorder?.state !== "recording") return;
+    if (this.recordMode === "webm" && this.mediaRecorder && this.mediaRecorder.state === "recording") {
+      this.recording = false;
+      this.mediaRecorder.stop();
+      return;
+    }
+    this.flushRecording();
+  }
+
+  private async ensureWorklet(): Promise<void> {
+    if (!this.ctx || !this.master || this.recordNode) return;
+    await this.ctx.audioWorklet.addModule("/record-worklet.js");
+    const node = new AudioWorkletNode(this.ctx, "lumen-recorder", {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      channelCount: 2,
+    });
+    node.channelCountMode = "explicit";
+    node.channelInterpretation = "speakers";
+    const sink = this.ctx.createGain();
+    sink.gain.value = 0;
+    node.port.onmessage = (event: MessageEvent<{ left: Float32Array; right: Float32Array }>) => {
+      if (!this.recording || this.recordMode !== "wav") return;
+      const left = event.data.left;
+      const right = event.data.right;
+      this.recordLeft.push(left);
+      this.recordRight.push(right);
+      this.recordSamples += left.length;
+      if (this.recordSamples >= this.recordRate * 60 * 12) {
+        this.flushRecording("Recording stopped at twelve minutes.");
+      }
+    };
+    this.master.connect(node);
+    node.connect(sink);
+    sink.connect(this.ctx.destination);
+    this.recordNode = node;
+    this.recordSink = sink;
+  }
+
+  private startMediaRecording(): void {
+    if (!this.ctx || !this.master) return;
+    if (!this.mediaDest) {
+      this.mediaDest = this.ctx.createMediaStreamDestination();
+      this.master.connect(this.mediaDest);
+    }
+    const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "";
+    const recorder = new MediaRecorder(this.mediaDest.stream, mime ? { mimeType: mime, audioBitsPerSecond: 256000 } : undefined);
+    this.mediaChunks = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) this.mediaChunks.push(event.data);
+    };
+    recorder.onstop = () => {
+      const blob = new Blob(this.mediaChunks, { type: recorder.mimeType || "audio/webm" });
+      this.mediaChunks = [];
+      this.recordMode = null;
+      if (blob.size < 32) {
+        this.onNotice?.("Recording was too short to keep.");
+        return;
+      }
+      this.onRecorded?.(blob, "webm");
+    };
+    recorder.start();
+    this.mediaRecorder = recorder;
+    this.recordMode = "webm";
+    this.recording = true;
+  }
+
+  private flushRecording(reason?: string): void {
+    const was = this.recording || this.recordSamples > 0;
+    this.recording = false;
+    this.recordMode = null;
+    if (!was) return;
+    const left = concatFloats(this.recordLeft);
+    const right = concatFloats(this.recordRight);
+    this.recordLeft = [];
+    this.recordRight = [];
+    this.recordSamples = 0;
+    if (left.length < 32) {
+      this.onNotice?.("Recording was too short to keep.");
+      return;
+    }
+    if (reason) this.onNotice?.(reason);
+    this.onRecorded?.(encodeWav(left, right, this.recordRate), "wav");
   }
 
   private approach(param: AudioParam, value: number, seconds: number): void {

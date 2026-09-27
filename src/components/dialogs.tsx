@@ -157,7 +157,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             onChange={(value) => setSettings({ shimmer: value / 100 })}
           />
           <Slider
-            label="Stereo width"
+            label="Room width"
             min={0}
             max={100}
             step={1}
@@ -166,7 +166,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             onChange={(value) => setSettings({ width: value / 100 })}
           />
           <Slider
-            label="Depth"
+            label="Room depth"
             min={0}
             max={100}
             step={1}
@@ -175,7 +175,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             onChange={(value) => setSettings({ depth: value / 100 })}
           />
           <p className="text-pretty text-xs text-muted">
-            Left and right follow the floor. Depth is a few milliseconds of distance, not an echo.
+            The bowls and the ear share this room. What you see is what you hear, and what gets recorded.
           </p>
           <Toggle
             label="Hemisphere bed"
