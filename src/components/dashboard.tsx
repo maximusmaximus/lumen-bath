@@ -17,9 +17,29 @@ export function DashboardDialog({ open, onOpenChange }: { open: boolean; onOpenC
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [menu, setMenu] = useState<"profile" | "admin">("profile");
+  const [menu, setMenu] = useState<"profile" | "agent" | "admin">("profile");
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingExpires, setPairingExpires] = useState<string | null>(null);
+  const [pairingLoading, setPairingLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const dirty = useRef(false);
   const { user, isPending } = useCurrentUserState();
+
+  async function generatePairing() {
+    setPairingLoading(true);
+    try {
+      const res = await fetch("/api/agent/pair");
+      const json = await res.json();
+      if (json.code) {
+        setPairingCode(json.code);
+        setPairingExpires(new Date(json.expiresAt).toLocaleTimeString());
+      }
+    } catch {
+      // noop
+    } finally {
+      setPairingLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!open) {
@@ -104,7 +124,7 @@ export function DashboardDialog({ open, onOpenChange }: { open: boolean; onOpenC
   return (
     <Modal open={open} onOpenChange={onOpenChange} title="Dashboard">
       <div className="grid gap-4" data-dashboard>
-        <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Dashboard menu">
+        <div className="grid grid-cols-3 gap-2" role="tablist" aria-label="Dashboard menu">
           <button
             type="button"
             role="tab"
@@ -113,6 +133,16 @@ export function DashboardDialog({ open, onOpenChange }: { open: boolean; onOpenC
             onClick={() => setMenu("profile")}
           >
             Profile
+          </button>
+          <button
+            type="button"
+            role="tab"
+            data-agent-tab
+            aria-selected={menu === "agent"}
+            className={`h-11 rounded-md border text-sm ${menu === "agent" ? "border-gold bg-gold text-bg" : "border-line text-fg"}`}
+            onClick={() => setMenu("agent")}
+          >
+            Agent (MCP)
           </button>
           <button
             type="button"
@@ -127,6 +157,81 @@ export function DashboardDialog({ open, onOpenChange }: { open: boolean; onOpenC
         </div>
         {menu === "admin" ? (
           <FeedbackInbox />
+        ) : menu === "agent" ? (
+          <div className="grid gap-4">
+            <h2 className="font-display text-3xl">Agent & MCP Pairing</h2>
+            <p className="text-pretty text-sm text-muted">
+              Connect external AI agents (via MCP, Claude, Cursor, Antigravity, Hermes) to compose, save, and load soundscapes under your account without placing elements manually.
+            </p>
+
+            {!user ? (
+              <div className="grid gap-3 rounded-lg border border-line bg-surface-2 p-4">
+                <p className="text-sm text-muted">
+                  Sign in to generate an agent pairing code linked to your user profile.
+                </p>
+                <Link to="/login" search={{ next: "/dash" }} className="inline-flex h-11 items-center justify-center rounded-md bg-gold text-sm font-medium text-bg">
+                  Sign in to Link Agent
+                </Link>
+                <p className="text-xs text-muted">
+                  Note: Headless agents can also use Lumen Bath x402 audio downloads without signing in!
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 rounded-lg border border-line bg-surface-2 p-4">
+                <p className="text-sm text-muted">
+                  Generate a 6-character pairing code to connect your agent harness:
+                </p>
+
+                {pairingCode ? (
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between rounded-md border border-gold bg-bg px-4 py-3">
+                      <div>
+                        <span className="font-mono text-2xl font-bold tracking-widest text-gold">{pairingCode}</span>
+                        <p className="text-xs text-muted">Valid until {pairingExpires}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded bg-gold px-3 py-1.5 text-xs font-semibold text-bg"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(pairingCode);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                      >
+                        {copied ? "Copied!" : "Copy Code"}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted">
+                      Tell your agent: <code className="text-fg">Pair with code {pairingCode}</code> or call tool <code className="text-fg">lumen_pair_profile</code>.
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="h-11 rounded-md bg-gold text-sm font-medium text-bg"
+                    disabled={pairingLoading}
+                    onClick={() => void generatePairing()}
+                  >
+                    {pairingLoading ? "Generating…" : "Generate Pairing Code"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="grid gap-2 rounded-lg border border-line p-4">
+              <h3 className="font-medium text-fg text-sm">x402 Audio Downloads</h3>
+              <p className="text-xs text-muted">
+                Agents can export fully rendered song tracks via the x402 payment protocol:
+              </p>
+              <ul className="grid gap-1 text-xs text-muted">
+                <li>• <strong className="text-fg">MP3 (320 kbps)</strong>: $20.00 / hour (CBR high-fidelity, tagged with ID3v2 & cover art)</li>
+                <li>• <strong className="text-fg">FLAC (24-bit 48kHz)</strong>: $45.00 / hour (Lossless studio master, includes spatial stems package)</li>
+              </ul>
+              <p className="text-xs text-muted">
+                Account linking allows the agent to produce and organize downloads under your profile; track exports are billed via x402.
+              </p>
+            </div>
+          </div>
         ) : (
         <>
         <p className="text-pretty text-sm text-muted">The bath keeps playing behind this. Escape closes it.</p>

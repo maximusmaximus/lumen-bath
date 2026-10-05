@@ -1,6 +1,6 @@
 import { deflateSync } from "node:zlib";
-import { getRoom } from "@/lib/audio/rooms";
-import { roomPolygon } from "@/lib/audio/waves";
+import { getRoom } from "../audio/rooms.ts";
+import { roomPolygon } from "../audio/waves.ts";
 import type { ShareCard } from "@/lib/share/card";
 
 const W = 1200;

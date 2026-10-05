@@ -13,10 +13,17 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashRouteImport } from './routes/dash'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ApiCastRouteImport } from './routes/api/cast'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as ApiRtcRouteImport } from './routes/api/rtc'
 import { Route as ApiShareCardRouteImport } from './routes/api/share-card'
 import { Route as SSplatRouteImport } from './routes/s/$'
+import { Route as ApiAgentPairRouteImport } from './routes/api/agent/pair'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiExportDownloadRouteImport } from './routes/api/export/download'
+import { Route as ApiExportOrderRouteImport } from './routes/api/export/order'
+import { Route as ApiExportQuoteRouteImport } from './routes/api/export/quote'
+import { Route as ApiExportSettleRouteImport } from './routes/api/export/settle'
+import { Route as ApiExportStatusRouteImport } from './routes/api/export/status'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -38,6 +45,11 @@ const ApiCastRoute = ApiCastRouteImport.update({
   path: '/api/cast',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRtcRoute = ApiRtcRouteImport.update({
   id: '/api/rtc',
   path: '/api/rtc',
@@ -53,9 +65,39 @@ const SSplatRoute = SSplatRouteImport.update({
   path: '/s/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentPairRoute = ApiAgentPairRouteImport.update({
+  id: '/api/agent/pair',
+  path: '/api/agent/pair',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExportDownloadRoute = ApiExportDownloadRouteImport.update({
+  id: '/api/export/download',
+  path: '/api/export/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExportOrderRoute = ApiExportOrderRouteImport.update({
+  id: '/api/export/order',
+  path: '/api/export/order',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExportQuoteRoute = ApiExportQuoteRouteImport.update({
+  id: '/api/export/quote',
+  path: '/api/export/quote',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExportSettleRoute = ApiExportSettleRouteImport.update({
+  id: '/api/export/settle',
+  path: '/api/export/settle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExportStatusRoute = ApiExportStatusRouteImport.update({
+  id: '/api/export/status',
+  path: '/api/export/status',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -64,20 +106,34 @@ export interface FileRoutesByFullPath {
   '/dash': typeof DashRoute
   '/login': typeof LoginRoute
   '/api/cast': typeof ApiCastRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/api/rtc': typeof ApiRtcRoute
   '/api/share-card': typeof ApiShareCardRoute
   '/s/$': typeof SSplatRoute
+  '/api/agent/pair': typeof ApiAgentPairRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/export/download': typeof ApiExportDownloadRoute
+  '/api/export/order': typeof ApiExportOrderRoute
+  '/api/export/quote': typeof ApiExportQuoteRoute
+  '/api/export/settle': typeof ApiExportSettleRoute
+  '/api/export/status': typeof ApiExportStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dash': typeof DashRoute
   '/login': typeof LoginRoute
   '/api/cast': typeof ApiCastRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/api/rtc': typeof ApiRtcRoute
   '/api/share-card': typeof ApiShareCardRoute
   '/s/$': typeof SSplatRoute
+  '/api/agent/pair': typeof ApiAgentPairRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/export/download': typeof ApiExportDownloadRoute
+  '/api/export/order': typeof ApiExportOrderRoute
+  '/api/export/quote': typeof ApiExportQuoteRoute
+  '/api/export/settle': typeof ApiExportSettleRoute
+  '/api/export/status': typeof ApiExportStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -85,10 +141,17 @@ export interface FileRoutesById {
   '/dash': typeof DashRoute
   '/login': typeof LoginRoute
   '/api/cast': typeof ApiCastRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/api/rtc': typeof ApiRtcRoute
   '/api/share-card': typeof ApiShareCardRoute
   '/s/$': typeof SSplatRoute
+  '/api/agent/pair': typeof ApiAgentPairRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/export/download': typeof ApiExportDownloadRoute
+  '/api/export/order': typeof ApiExportOrderRoute
+  '/api/export/quote': typeof ApiExportQuoteRoute
+  '/api/export/settle': typeof ApiExportSettleRoute
+  '/api/export/status': typeof ApiExportStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,30 +160,51 @@ export interface FileRouteTypes {
     | '/dash'
     | '/login'
     | '/api/cast'
+    | '/api/mcp'
     | '/api/rtc'
     | '/api/share-card'
     | '/s/$'
+    | '/api/agent/pair'
     | '/api/auth/$'
+    | '/api/export/download'
+    | '/api/export/order'
+    | '/api/export/quote'
+    | '/api/export/settle'
+    | '/api/export/status'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dash'
     | '/login'
     | '/api/cast'
+    | '/api/mcp'
     | '/api/rtc'
     | '/api/share-card'
     | '/s/$'
+    | '/api/agent/pair'
     | '/api/auth/$'
+    | '/api/export/download'
+    | '/api/export/order'
+    | '/api/export/quote'
+    | '/api/export/settle'
+    | '/api/export/status'
   id:
     | '__root__'
     | '/'
     | '/dash'
     | '/login'
     | '/api/cast'
+    | '/api/mcp'
     | '/api/rtc'
     | '/api/share-card'
     | '/s/$'
+    | '/api/agent/pair'
     | '/api/auth/$'
+    | '/api/export/download'
+    | '/api/export/order'
+    | '/api/export/quote'
+    | '/api/export/settle'
+    | '/api/export/status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -128,10 +212,17 @@ export interface RootRouteChildren {
   DashRoute: typeof DashRoute
   LoginRoute: typeof LoginRoute
   ApiCastRoute: typeof ApiCastRoute
+  ApiMcpRoute: typeof ApiMcpRoute
   ApiRtcRoute: typeof ApiRtcRoute
   ApiShareCardRoute: typeof ApiShareCardRoute
   SSplatRoute: typeof SSplatRoute
+  ApiAgentPairRoute: typeof ApiAgentPairRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiExportDownloadRoute: typeof ApiExportDownloadRoute
+  ApiExportOrderRoute: typeof ApiExportOrderRoute
+  ApiExportQuoteRoute: typeof ApiExportQuoteRoute
+  ApiExportSettleRoute: typeof ApiExportSettleRoute
+  ApiExportStatusRoute: typeof ApiExportStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -164,6 +255,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCastRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/rtc': {
       id: '/api/rtc'
       path: '/api/rtc'
@@ -185,11 +283,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agent/pair': {
+      id: '/api/agent/pair'
+      path: '/api/agent/pair'
+      fullPath: '/api/agent/pair'
+      preLoaderRoute: typeof ApiAgentPairRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/export/download': {
+      id: '/api/export/download'
+      path: '/api/export/download'
+      fullPath: '/api/export/download'
+      preLoaderRoute: typeof ApiExportDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/export/order': {
+      id: '/api/export/order'
+      path: '/api/export/order'
+      fullPath: '/api/export/order'
+      preLoaderRoute: typeof ApiExportOrderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/export/quote': {
+      id: '/api/export/quote'
+      path: '/api/export/quote'
+      fullPath: '/api/export/quote'
+      preLoaderRoute: typeof ApiExportQuoteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/export/settle': {
+      id: '/api/export/settle'
+      path: '/api/export/settle'
+      fullPath: '/api/export/settle'
+      preLoaderRoute: typeof ApiExportSettleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/export/status': {
+      id: '/api/export/status'
+      path: '/api/export/status'
+      fullPath: '/api/export/status'
+      preLoaderRoute: typeof ApiExportStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -200,10 +340,17 @@ const rootRouteChildren: RootRouteChildren = {
   DashRoute: DashRoute,
   LoginRoute: LoginRoute,
   ApiCastRoute: ApiCastRoute,
+  ApiMcpRoute: ApiMcpRoute,
   ApiRtcRoute: ApiRtcRoute,
   ApiShareCardRoute: ApiShareCardRoute,
   SSplatRoute: SSplatRoute,
+  ApiAgentPairRoute: ApiAgentPairRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiExportDownloadRoute: ApiExportDownloadRoute,
+  ApiExportOrderRoute: ApiExportOrderRoute,
+  ApiExportQuoteRoute: ApiExportQuoteRoute,
+  ApiExportSettleRoute: ApiExportSettleRoute,
+  ApiExportStatusRoute: ApiExportStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
