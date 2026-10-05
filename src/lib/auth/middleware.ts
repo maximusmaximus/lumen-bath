@@ -45,3 +45,22 @@ export const authMiddleware = createMiddleware({ type: "function" })
     const userId = await requireUserId(context.bearerToken);
     return next({ context: { userId } });
   });
+
+/** Session when there is one. Signed out stays signed out instead of throwing. */
+export const optionalAuthMiddleware = createMiddleware({ type: "function" })
+  .client(async ({ next }) => {
+    const { getBearerToken } = await import("./client");
+    return next({ sendContext: { bearerToken: getBearerToken() ?? undefined } });
+  })
+  .server(async ({ next, context }) => {
+    const { getSessionUser, DEV_USER_ID } = await import("./verify.server");
+    const { authConfigured } = await import("./server");
+    let userId: string | null = null;
+    if (!authConfigured) {
+      if (!process.env.DATABASE_URL?.trim()) userId = DEV_USER_ID;
+    } else {
+      const user = await getSessionUser(context.bearerToken);
+      userId = user?.id ?? null;
+    }
+    return next({ context: { userId } });
+  });

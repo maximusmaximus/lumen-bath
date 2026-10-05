@@ -1,0 +1,392 @@
+import type { GongId } from "@/lib/audio/gong";
+import { roomPatch } from "@/lib/audio/rooms";
+import type { GlassId, MusicalSettings, Preset, PresetBowl, PresetEar, RoomShapeId } from "@/lib/audio/types";
+
+function tune(shape: RoomShapeId, extra: Partial<MusicalSettings> = {}): Partial<MusicalSettings> {
+  return { ...roomPatch(shape), ...extra, roomShape: shape };
+}
+
+function bowl(
+  frequency: number,
+  size: number,
+  glass: GlassId,
+  x: number,
+  y: number,
+  gain = 0.74,
+  sing = 0.2,
+  height = 0.46,
+  gong?: GongId,
+): PresetBowl {
+  return { frequency, size, height, glass, x, y, gain, sing, gong };
+}
+
+function horn(
+  x: number,
+  y: number,
+  height: number,
+  yaw: number,
+  pitch: number,
+  left: number,
+  right: number,
+  ls = 0.85,
+  rs = 0.85,
+  spread = 0.14,
+  lg = 1,
+  rg = 1,
+): PresetEar {
+  return {
+    x,
+    y,
+    height,
+    yaw,
+    pitch,
+    left: { x: -spread, y: 0.02, z: 0.06, gain: lg, size: ls, pitch: left },
+    right: { x: spread, y: 0.02, z: 0.06, gain: rg, size: rs, pitch: right },
+  };
+}
+
+const ai = "AI generated";
+
+/** Twenty setups that use horn aim, height, mallets, and stem cycles. */
+export const AI_PRESETS: Preset[] = [
+  {
+    id: "ai-lip-down",
+    name: "Lip Down",
+    source: "ai",
+    blurb: "Both mouths look almost straight down into a rose chord. The head tilt is steep, so the floor glass is what the horns collect.",
+    tags: [ai, "Horns", "Listening", "Chapel"],
+    settings: tune("chapel", { shimmer: 0.32, wet: 0.22, hall: 0.28, air: 0.06, early: 0.9, bloom: 0.7, decay: 0.3, absorption: 0.4 }),
+    ears: [horn(0.62, 0.74, 0.7, 0.2, 1.05, 0.9, 1.1, 0.9, 0.95, 0.12)],
+    bowls: [
+      bowl(136.1, 0.92, "rose", 0.48, 0.46, 0.84, 0.12, 0.28, "felt"),
+      bowl(170, 0.55, "rose", 0.3, 0.58, 0.66, 0.22, 0.62, "suede"),
+      bowl(204, 0.7, "selenite", 0.68, 0.4, 0.52, 0.18, 0.4),
+    ],
+  },
+  {
+    id: "ai-sky-mouth",
+    name: "Sky Mouth",
+    source: "ai",
+    blurb: "The left horn points up into the dome. The right horn points down at the glass. One ear hears the room, the other hears the bowls.",
+    tags: [ai, "Horns", "Listening", "Dome"],
+    settings: tune("dome", { loopMode: "breath", period: 20, shimmer: 0.48, wet: 0.28, hall: 0.6, decay: 0.72, diffusion: 0.84, bloom: 0.55 }),
+    ears: [horn(0.46, 0.62, 1.4, 0.15, 0.25, -1.15, 0.85, 1.05, 0.7, 0.16)],
+    bowls: [
+      bowl(98, 0.9, "frosted", 0.4, 0.4, 0.8, 0.14, 0.3, "wood"),
+      bowl(146.83, 0.52, "selenite", 0.62, 0.48, 0.6, 0.24, 0.8),
+      bowl(196, 0.66, "aqua", 0.34, 0.28, 0.48, 0.2, 0.9, "brass"),
+    ],
+  },
+  {
+    id: "ai-canopy-seat",
+    name: "Canopy Seat",
+    source: "ai",
+    blurb: "The ear sits near the high ceiling and looks down. Wide mouths catch the whole ellipse, including the bounce off the floor.",
+    tags: [ai, "Horns", "High ear", "Listening"],
+    settings: tune("ellipse", { shimmer: 0.3, wet: 0.24, hall: 0.5, decay: 0.64, space: 0.8, airLoss: 0.22 }),
+    ears: [horn(0.5, 0.58, 3.1, 0.05, 1.15, 0.4, 0.55, 1.35, 1.4, 0.2)],
+    bowls: [
+      bowl(110, 0.88, "quartz", 0.38, 0.42, 0.82, 0.1, 0.26, "felt"),
+      bowl(164.81, 0.5, "emerald", 0.64, 0.5, 0.58, 0.22, 0.7),
+      bowl(220, 0.42, "gold", 0.46, 0.66, 0.44, 0.28, 0.84, "wood"),
+    ],
+  },
+  {
+    id: "ai-open-bells",
+    name: "Open Bells",
+    source: "ai",
+    blurb: "Very wide mouths in an open court. Off-axis bowls still enter. Air loss stays low so the bells stay bright.",
+    tags: [ai, "Horns", "Listening", "Courtyard"],
+    settings: tune("court", { shimmer: 0.16, wet: 0.1, hall: 0.16, airLoss: 0.12, absorption: 0.55, early: 0.4 }),
+    ears: [horn(0.72, 0.78, 0.9, -0.6, 0.3, -0.1, 0.15, 1.7, 1.65, 0.22)],
+    bowls: [
+      bowl(110, 0.96, "quartz", 0.28, 0.62, 0.86, 0.1, 0.24, "wood"),
+      bowl(165, 0.48, "aqua", 0.48, 0.34, 0.62, 0.2, 0.78),
+      bowl(220, 0.6, "quartz", 0.7, 0.48, 0.5, 0.24, 0.4),
+    ],
+  },
+  {
+    id: "ai-pin-drop",
+    name: "Pin Drop",
+    source: "ai",
+    blurb: "Needle mouths in a long corridor. Only a bowl straight into the opening comes through. The rest falls off in the air.",
+    tags: [ai, "Horns", "Listening", "Corridor"],
+    settings: tune("corridor", { airLoss: 0.92, slap: 0.7, flutter: 0.66, wet: 0.12, hall: 0.2, shimmer: 0.08 }),
+    ears: [horn(0.18, 0.5, 0.55, 0.02, 0.15, 0.05, -0.05, 0.32, 0.34, 0.08)],
+    bowls: [
+      bowl(146.83, 0.84, "platinum", 0.42, 0.5, 0.8, 0.12, 0.3, "brass"),
+      bowl(220, 0.46, "platinum", 0.62, 0.46, 0.55, 0.22, 0.72),
+      bowl(293.66, 0.4, "frosted", 0.8, 0.54, 0.4, 0.3, 0.86),
+    ],
+  },
+  {
+    id: "ai-five-mallets",
+    name: "Five Mallets",
+    source: "ai",
+    blurb: "Five bowls, five mallets: felt, wood, rubber, suede, and brass. Mouths sit level with the rims so a tap on the controller lands in the horn.",
+    tags: [ai, "Gong", "Listening", "Rotunda"],
+    settings: tune("rotunda", { loopMode: "mallet", period: 9, shimmer: 0.2, wet: 0.16, hall: 0.36, decay: 0.4 }),
+    ears: [horn(0.5, 0.8, 0.62, 0.1, 0.45, 0.2, 0.35, 0.8, 0.8, 0.13)],
+    bowls: [
+      bowl(98, 0.9, "gold", 0.4, 0.42, 0.8, 0.1, 0.32, "felt"),
+      bowl(123.47, 0.7, "rose", 0.58, 0.4, 0.66, 0.16, 0.5, "wood"),
+      bowl(146.83, 0.55, "quartz", 0.48, 0.58, 0.54, 0.22, 0.7, "rubber"),
+      bowl(196, 0.42, "emerald", 0.32, 0.5, 0.44, 0.28, 0.84, "suede"),
+      bowl(246.94, 0.38, "platinum", 0.66, 0.62, 0.36, 0.32, 0.9, "brass"),
+    ],
+  },
+  {
+    id: "ai-nave-walk",
+    name: "Nave Walk",
+    source: "ai",
+    cycle: { on: true, seconds: 4 },
+    blurb: "Four ears down the nave. Cycle starts at four seconds, so you hear one pair, then fade to the next, from the door to the altar.",
+    tags: [ai, "Cycle", "Listening", "Nave"],
+    settings: tune("nave", { shimmer: 0.26, wet: 0.24, hall: 0.58, early: 0.7, decay: 0.66, space: 0.5 }),
+    ears: [
+      horn(0.22, 0.5, 0.5, 0.05, 0.3, 0.1, 0.2, 0.7, 0.75),
+      horn(0.42, 0.42, 0.7, 0.1, 0.45, -0.2, 0.4, 0.85, 0.6),
+      horn(0.64, 0.58, 1.1, -0.08, 0.6, 0.3, -0.35, 0.6, 1),
+      horn(0.84, 0.48, 1.6, 3.05, 0.8, 0.5, 0.7, 1.1, 1.1),
+    ],
+    bowls: [
+      bowl(110, 0.88, "selenite", 0.36, 0.46, 0.82, 0.12, 0.28, "suede"),
+      bowl(164.81, 0.56, "gold", 0.55, 0.4, 0.64, 0.2, 0.62),
+      bowl(220, 0.48, "rose", 0.7, 0.58, 0.5, 0.24, 0.8, "wood"),
+    ],
+  },
+  {
+    id: "ai-octagon-hour",
+    name: "Octagon Hour",
+    source: "ai",
+    download: true,
+    cycle: { on: true, seconds: 18 },
+    blurb: "All eight stems, one toward each wall. Cycle is slow, eighteen seconds, so each mouth can finish a phrase before the fade.",
+    tags: [ai, "Cycle", "Download", "Octagon"],
+    settings: tune("octagon", { loopMode: "canon", period: 18, shimmer: 0.2, wet: 0.2, hall: 0.46, decay: 0.55 }),
+    ears: Array.from({ length: 8 }, (_, index) => {
+      const angle = (index / 8) * Math.PI * 2;
+      return horn(
+        Math.round((0.5 + Math.cos(angle) * 0.34) * 100) / 100,
+        Math.round((0.5 + Math.sin(angle) * 0.34) * 100) / 100,
+        Math.round((0.4 + index * 0.28) * 100) / 100,
+        angle + Math.PI,
+        0.35 + (index % 3) * 0.15,
+        index % 2 === 0 ? -0.4 : 0.25,
+        index % 2 === 0 ? 0.45 : -0.2,
+        0.6 + (index % 4) * 0.2,
+        0.7 + ((index + 1) % 4) * 0.18,
+      );
+    }),
+    bowls: [
+      bowl(73.42, 0.96, "obsidian", 0.5, 0.5, 0.86, 0.08, 0.26, "rubber"),
+      bowl(110, 0.6, "gold", 0.36, 0.42, 0.66, 0.16, 0.55),
+      bowl(164.81, 0.5, "frosted", 0.64, 0.46, 0.52, 0.22, 0.78, "brass"),
+      bowl(220, 0.42, "platinum", 0.48, 0.64, 0.4, 0.28, 0.4),
+    ],
+  },
+  {
+    id: "ai-cube-flicker",
+    name: "Cube Flicker",
+    source: "ai",
+    cycle: { on: true, seconds: 0.4 },
+    blurb: "Three corners of a cube. Cycle is just under half a second, a quick fade, so the chord jumps from corner to corner without a gap.",
+    tags: [ai, "Cycle", "Listening", "Cube"],
+    settings: tune("cube", { loopMode: "mallet", period: 8, modes: 0.8, flutter: 0.4, wet: 0.16, hall: 0.28, decay: 0.36 }),
+    ears: [
+      horn(0.24, 0.74, 0.45, 0.8, 0.2, 0.1, 0.3, 0.6, 0.65),
+      horn(0.76, 0.7, 0.8, -0.7, 0.4, -0.3, 0.5, 0.9, 0.55),
+      horn(0.5, 0.28, 1.3, 3.1, 0.7, 0.6, -0.4, 1.1, 1),
+    ],
+    bowls: [
+      bowl(82.41, 0.9, "obsidian", 0.46, 0.48, 0.84, 0.1, 0.28, "wood"),
+      bowl(123.47, 0.55, "platinum", 0.62, 0.4, 0.6, 0.2, 0.7),
+      bowl(164.81, 0.48, "quartz", 0.36, 0.6, 0.48, 0.26, 0.84, "brass"),
+    ],
+  },
+  {
+    id: "ai-shy-left",
+    name: "Shy Left",
+    source: "ai",
+    blurb: "The left mouth is quiet and narrow. The right mouth is open and loud. The same bowl is a whisper on one side and full on the other.",
+    tags: [ai, "Horns", "Listening", "Shoebox"],
+    settings: tune("shoebox", { shimmer: 0.22, wet: 0.2, hall: 0.44, space: 0.66, early: 0.6 }),
+    ears: [horn(0.52, 0.72, 0.58, 0.06, 0.35, 0.15, 0.2, 0.4, 1.45, 0.18, 0.28, 1)],
+    bowls: [
+      bowl(146.83, 0.86, "gold", 0.3, 0.4, 0.8, 0.14, 0.32, "felt"),
+      bowl(185, 0.5, "frosted", 0.68, 0.42, 0.62, 0.24, 0.74),
+      bowl(220, 0.62, "gold", 0.46, 0.26, 0.5, 0.18, 0.5, "wood"),
+    ],
+  },
+  {
+    id: "ai-among-bowls",
+    name: "Among the Bowls",
+    source: "ai",
+    blurb: "A low ear inside the chord. The mouths aim at the nearest rims, so the close bowls are loud and the far ones are only a bounce.",
+    tags: [ai, "Horns", "Listening", "Rotunda"],
+    settings: tune("rotunda", { shimmer: 0.18, wet: 0.14, hall: 0.3, early: 0.8, airLoss: 0.2 }),
+    ears: [horn(0.48, 0.5, 0.28, 0.4, 0.55, 0.7, 0.2, 0.55, 0.7, 0.1)],
+    bowls: [
+      bowl(130.81, 0.84, "quartz", 0.34, 0.42, 0.82, 0.12, 0.3, "rubber"),
+      bowl(164.81, 0.5, "rose", 0.62, 0.46, 0.64, 0.22, 0.66),
+      bowl(196, 0.64, "selenite", 0.5, 0.66, 0.5, 0.18, 0.42, "suede"),
+    ],
+  },
+  {
+    id: "ai-cave-echo",
+    name: "Cave Echo",
+    source: "ai",
+    blurb: "The mouths face the cave wall, not the bowls. What you hear is mostly the bounce, darker and later than the direct glass.",
+    tags: [ai, "Horns", "Listening", "Cave"],
+    settings: tune("cave", { loopMode: "tide", period: 32, wet: 0.4, hall: 0.78, decay: 0.9, absorption: 0.82, airLoss: 0.55, bloom: 0.7 }),
+    ears: [horn(0.62, 0.7, 0.8, 2.4, 0.2, -0.15, 0.1, 1.2, 1.15, 0.16)],
+    bowls: [
+      bowl(55, 1, "obsidian", 0.32, 0.4, 0.9, 0.08, 0.24, "suede"),
+      bowl(82.5, 0.62, "obsidian", 0.5, 0.58, 0.7, 0.14, 0.4),
+      bowl(110, 0.48, "phantom", 0.7, 0.36, 0.5, 0.26, 0.82, "felt"),
+    ],
+  },
+  {
+    id: "ai-tide-canopy",
+    name: "Tide Canopy",
+    source: "ai",
+    blurb: "Tide under a high ear. The mouths look down through aqua and emerald. Height puts the horns above the glass, so the angle is steep.",
+    tags: [ai, "High ear", "Listening", "Ellipse"],
+    settings: tune("ellipse", { loopMode: "tide", period: 34, shimmer: 0.36, wet: 0.28, hall: 0.56, decay: 0.7, bloom: 0.5 }),
+    ears: [horn(0.5, 0.5, 2.6, 0.08, 1.0, 0.35, 0.6, 1.2, 1.25, 0.18)],
+    bowls: [
+      bowl(98, 0.9, "aqua", 0.36, 0.4, 0.82, 0.12, 0.28, "rubber"),
+      bowl(146.83, 0.58, "emerald", 0.62, 0.48, 0.64, 0.2, 0.6),
+      bowl(196, 0.46, "aqua", 0.48, 0.66, 0.48, 0.26, 0.84, "wood"),
+    ],
+  },
+  {
+    id: "ai-brass-felt",
+    name: "Brass and Felt",
+    source: "ai",
+    blurb: "A felt bowl and a brass bowl in the golden hall. The left mouth favors the soft one. The right mouth is aimed at the bright one.",
+    tags: [ai, "Gong", "Listening", "Golden hall"],
+    settings: tune("golden", { shimmer: 0.4, wet: 0.26, hall: 0.7, decay: 0.8, bloom: 0.48, space: 0.72 }),
+    ears: [horn(0.5, 0.74, 0.66, 0.12, 0.4, 0.55, -0.15, 0.7, 1.15, 0.16, 1, 1)],
+    bowls: [
+      bowl(110, 0.94, "gold", 0.32, 0.4, 0.86, 0.1, 0.26, "felt"),
+      bowl(164.81, 0.55, "platinum", 0.66, 0.42, 0.62, 0.22, 0.7, "brass"),
+      bowl(220, 0.46, "emerald", 0.48, 0.62, 0.46, 0.2, 0.5),
+    ],
+  },
+  {
+    id: "ai-ladder-mics",
+    name: "Ladder Mics",
+    source: "ai",
+    blurb: "Four recording heights: floor, seated, standing, and canopy. Each pair of mouths aims differently, so the stems are not copies of each other.",
+    tags: [ai, "Recording", "High ear", "Gilded hall"],
+    settings: tune("gilded", { shimmer: 0.3, wet: 0.24, hall: 0.68, decay: 0.76, early: 0.5 }),
+    ears: [
+      horn(0.4, 0.62, 0.22, 0.3, 0.15, 0.4, 0.5, 0.9, 0.7),
+      horn(0.56, 0.48, 0.85, -0.2, 0.4, -0.2, 0.3, 0.65, 0.95),
+      horn(0.48, 0.7, 1.7, 0.1, 0.7, 0.2, -0.45, 1.05, 0.8),
+      horn(0.62, 0.4, 3.2, 3.0, 1.1, 0.5, 0.8, 1.3, 1.25),
+    ],
+    bowls: [
+      bowl(98, 0.92, "gold", 0.34, 0.36, 0.84, 0.12, 0.28, "felt"),
+      bowl(146.83, 0.56, "platinum", 0.66, 0.44, 0.64, 0.2, 0.62, "wood"),
+      bowl(196, 0.48, "emerald", 0.5, 0.62, 0.5, 0.24, 0.8),
+    ],
+  },
+  {
+    id: "ai-night-tilt",
+    name: "Night Tilt",
+    source: "ai",
+    blurb: "A binaural bed under a steep tilt. The mouths look down past an obsidian drone. Small cones keep the night narrow.",
+    tags: [ai, "Horns", "Listening", "Rotunda"],
+    settings: tune("rotunda", { binaural: true, binauralCarrier: 90, binauralBeat: 1.2, binauralLevel: 0.4, veil: 0.22, wet: 0.2, hall: 0.5, decay: 0.7, shimmer: 0.1 }),
+    ears: [horn(0.58, 0.42, 0.48, 1.7, 0.95, 0.6, 0.85, 0.48, 0.52, 0.1)],
+    bowls: [
+      bowl(48, 1, "obsidian", 0.42, 0.6, 0.9, 0.06, 0.22, "suede"),
+      bowl(72, 0.66, "obsidian", 0.64, 0.46, 0.68, 0.12, 0.4),
+      bowl(108, 0.42, "gold", 0.36, 0.32, 0.44, 0.24, 0.82, "brass"),
+    ],
+  },
+  {
+    id: "ai-fan-canon",
+    name: "Fan Canon",
+    source: "ai",
+    blurb: "Canon in the fan hall. Four ears, and each horn pair alternates: one mouth up, one mouth down, so the repeats arrive from different angles.",
+    tags: [ai, "Horns", "Listening", "Fan hall"],
+    settings: tune("fan", { loopMode: "canon", period: 14, shimmer: 0.22, wet: 0.18, hall: 0.4, early: 0.55 }),
+    ears: [
+      horn(0.3, 0.7, 0.5, 0.4, 0.25, -0.8, 0.45, 0.7, 0.9),
+      horn(0.55, 0.55, 0.8, -0.3, 0.4, 0.5, -0.7, 0.95, 0.6),
+      horn(0.72, 0.35, 1.2, 2.6, 0.55, -0.4, 0.6, 0.55, 1.15),
+      horn(0.4, 0.28, 1.8, 1.2, 0.75, 0.3, -0.9, 1.2, 0.7),
+    ],
+    bowls: [
+      bowl(123.47, 0.8, "aqua", 0.46, 0.48, 0.78, 0.14, 0.34, "wood"),
+      bowl(164.81, 0.52, "emerald", 0.62, 0.4, 0.6, 0.22, 0.66),
+      bowl(196, 0.44, "quartz", 0.34, 0.58, 0.48, 0.26, 0.8, "felt"),
+    ],
+  },
+  {
+    id: "ai-apse-whisper",
+    name: "Apse Whisper",
+    source: "ai",
+    blurb: "Both mouths are turned down and the cone volume is low. Selenite in the apse stays a whisper even when a wave lands in the opening.",
+    tags: [ai, "Horns", "Listening", "Apse"],
+    settings: tune("apse", { shimmer: 0.34, wet: 0.2, hall: 0.36, early: 0.74, absorption: 0.48, air: 0.08 }),
+    ears: [horn(0.58, 0.72, 0.46, 0.5, 0.65, 0.4, 0.55, 0.6, 0.62, 0.11, 0.35, 0.4)],
+    bowls: [
+      bowl(136.1, 0.88, "selenite", 0.4, 0.4, 0.7, 0.12, 0.3, "felt"),
+      bowl(170, 0.5, "selenite", 0.62, 0.5, 0.55, 0.22, 0.7),
+      bowl(204, 0.42, "rose", 0.48, 0.64, 0.42, 0.26, 0.84, "suede"),
+    ],
+  },
+  {
+    id: "ai-ellipse-orbit",
+    name: "Ellipse Orbit",
+    source: "ai",
+    cycle: { on: true, seconds: 8 },
+    blurb: "Four ears around an ellipse. Eight seconds on each, with a quick fade. Every stop has its own height and its own mouth angle.",
+    tags: [ai, "Cycle", "Listening", "Ellipse"],
+    settings: tune("ellipse", { shimmer: 0.28, wet: 0.22, hall: 0.48, decay: 0.6, space: 0.7 }),
+    ears: [
+      horn(0.5, 0.82, 0.5, 0.05, 0.3, 0.1, 0.25, 0.75, 0.8),
+      horn(0.18, 0.5, 1.1, 1.55, 0.5, -0.45, 0.35, 1, 0.6),
+      horn(0.5, 0.18, 1.8, 3.1, 0.85, 0.4, 0.7, 1.15, 1.2),
+      horn(0.82, 0.5, 2.4, -1.5, 0.6, -0.2, -0.6, 0.7, 1.3),
+    ],
+    bowls: [
+      bowl(110, 0.86, "quartz", 0.42, 0.46, 0.8, 0.12, 0.3, "wood"),
+      bowl(138.59, 0.52, "aqua", 0.6, 0.4, 0.6, 0.22, 0.68),
+      bowl(174.61, 0.46, "phantom", 0.36, 0.6, 0.46, 0.28, 0.82, "brass"),
+    ],
+  },
+  {
+    id: "ai-crown-down",
+    name: "Crown Down",
+    source: "ai",
+    download: true,
+    blurb: "A full ring of stems, every mouth aimed down at one rose and gold chord. The file keeps all eight. You hear the front pair first.",
+    tags: [ai, "Download", "Horns", "Rotunda"],
+    settings: tune("rotunda", { shimmer: 0.36, wet: 0.24, hall: 0.58, decay: 0.66, early: 0.5, space: 0.8 }),
+    ears: Array.from({ length: 8 }, (_, index) => {
+      const angle = (index / 8) * Math.PI * 2 - Math.PI / 2;
+      return horn(
+        Math.round((0.5 + Math.cos(angle) * 0.3) * 100) / 100,
+        Math.round((0.5 + Math.sin(angle) * 0.3) * 100) / 100,
+        Math.round((0.55 + (index % 4) * 0.45) * 100) / 100,
+        angle + Math.PI,
+        0.9,
+        0.45 + (index % 3) * 0.15,
+        0.6,
+        0.85,
+        0.9,
+      );
+    }),
+    bowls: [
+      bowl(110, 0.9, "rose", 0.5, 0.48, 0.84, 0.1, 0.28, "felt"),
+      bowl(164.81, 0.58, "gold", 0.38, 0.4, 0.64, 0.18, 0.55, "wood"),
+      bowl(220, 0.46, "selenite", 0.62, 0.56, 0.5, 0.24, 0.78),
+      bowl(277.18, 0.4, "emerald", 0.46, 0.34, 0.4, 0.28, 0.4, "brass"),
+    ],
+  },
+];

@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { Slider, Toggle } from "@/components/controls";
-import { bathEngine } from "@/lib/audio/engine";
-import { periodRange } from "@/lib/audio/notes";
-import { PRESETS } from "@/lib/audio/presets";
-import type { LoopMode, Soundscape } from "@/lib/audio/types";
-import { exportPayload, parseImport, useBath } from "@/stores/bath";
+import { Slider, InfoPoint } from "@/components/controls";
+import { DownloadMark } from "@/components/download-mark";
+import { SessionPanel } from "@/components/session-panel";
+import { PRESETS, PRESET_TAGS, presetIsDownload } from "@/lib/audio/presets";
+import { proposeWeeklyPresets } from "@/lib/community/api";
+import { loadPresetStats, notePresetOpen, notePresetPlay, notePresetTag } from "@/lib/community/preset-stats";
+import type { PresetStat } from "@/lib/community/types";
+import { FRESH_SHAPES, getRoom, ROOM_EFFECTS, ROOMS } from "@/lib/audio/rooms";
+import { minRoomSize } from "@/lib/audio/space";
+import { useBath } from "@/stores/bath";
 
 export function Modal({
   open,
@@ -37,22 +41,121 @@ export function Modal({
   );
 }
 
-const MODES: { id: LoopMode; label: string; copy: string }[] = [
-  { id: "continuous", label: "Sustain", copy: "Endless ring. The default loop." },
-  { id: "breath", label: "Breath", copy: "The whole bath swells and eases together." },
-  { id: "tide", label: "Tide", copy: "A long rise and a shorter fall, then again." },
-  { id: "mallet", label: "Mallet", copy: "Soft strikes, staggered, then the cycle repeats." },
-  { id: "canon", label: "Canon", copy: "Bowls enter one after another, hold, and release." },
-];
-
 export function PresetDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const presetId = useBath((state) => state.presetId);
   const applyPreset = useBath((state) => state.applyPreset);
+  const [stats, setStats] = useState<Record<string, PresetStat>>({});
+  const [tag, setTag] = useState<string | null>(null);
+  const [sort, setSort] = useState<"new" | "features" | "loved" | "played" | "name">("new");
+  const [draft, setDraft] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    let cancel = false;
+    loadPresetStats()
+      .then((map) => {
+        if (!cancel) setStats(map);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancel = true;
+    };
+  }, [open]);
+  const shown = useMemo(() => {
+    const rows = PRESETS.map((preset, index) => ({ preset, index })).filter((row) => !tag || row.preset.tags.includes(tag));
+    const loved = (id: string) => {
+      const row = stats[id];
+      if (!row) return 0;
+      return row.plays + row.saves * 3 + row.stemSaves * 2 + row.ups * 4 - row.downs * 3;
+    };
+    if (sort === "name") rows.sort((a, b) => a.preset.name.localeCompare(b.preset.name) || a.index - b.index);
+    else if (sort === "played") rows.sort((a, b) => (stats[b.preset.id]?.plays ?? 0) - (stats[a.preset.id]?.plays ?? 0) || a.index - b.index);
+    else if (sort === "loved") rows.sort((a, b) => loved(b.preset.id) - loved(a.preset.id) || a.index - b.index);
+    else if (sort === "new") {
+      const rank = (tags: string[], source?: string) => (tags.includes("New") ? 0 : source === "ai" ? 1 : 2);
+      rows.sort((a, b) => rank(a.preset.tags, a.preset.source) - rank(b.preset.tags, b.preset.source) || b.index - a.index);
+    } else if (sort === "features") {
+      const feature = (tags: string[]) => tags.find((tag) => tag !== "New" && tag !== "AI generated") ?? "";
+      rows.sort((a, b) => feature(a.preset.tags).localeCompare(feature(b.preset.tags)) || Number(b.preset.tags.includes("New")) - Number(a.preset.tags.includes("New")) || a.preset.name.localeCompare(b.preset.name));
+    }
+    return rows.map((row) => row.preset);
+  }, [sort, stats, tag]);
+  const sorts = [
+    ["new", "New"],
+    ["features", "Features"],
+    ["loved", "Loved"],
+    ["played", "Played"],
+    ["name", "Name"],
+  ] as const;
   return (
     <Modal open={open} onOpenChange={onOpenChange} title="Presets">
-      <div className="grid gap-2">
-        {PRESETS.map((preset) => {
+      <div className="grid gap-3">
+        <p className="text-pretty text-sm text-muted">
+          Every bath has the new horns. New is the latest set, Features groups them by what they use, and a tag keeps one set. The five new domes show a hall-wide shell, a focused cup, a split return, a late ceiling, and a soft frost.
+        </p>
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <button
+            type="button"
+            aria-pressed={tag === null}
+            className={`shrink-0 min-h-9 rounded-full border px-2.5 text-xs ${tag === null ? "border-gold bg-gold/15 text-gold" : "border-line text-fg"}`}
+            onClick={() => setTag(null)}
+          >
+            All
+          </button>
+          {["New", "Dome", "Horns", "Cycle", "Download", "Listening"]
+            .filter((item) => PRESET_TAGS.includes(item))
+            .concat(PRESET_TAGS.filter((item) => !["New", "Dome", "AI generated", "Horns", "Cycle", "Download", "Listening"].includes(item)))
+            .map((item) => (
+            <button
+              key={item}
+              type="button"
+              aria-pressed={tag === item}
+              className={`shrink-0 min-h-9 rounded-full border px-2.5 text-xs ${tag === item ? "border-gold bg-gold/15 text-gold" : "border-line text-muted"}`}
+              onClick={() => {
+                const next = tag === item ? null : item;
+                setTag(next);
+                if (next) notePresetTag(next);
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {sorts.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={sort === id}
+              className={`min-h-9 rounded-md border px-2.5 text-xs ${sort === id ? "border-gold bg-gold/15 text-gold" : "border-line text-fg"}`}
+              onClick={() => setSort(id)}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="min-h-9 rounded-md px-2.5 text-xs text-gold disabled:opacity-50"
+            disabled={drafting}
+            onClick={() => {
+              setDrafting(true);
+              proposeWeeklyPresets()
+                .then((result) => setDraft(result.proposal))
+                .catch(() => setDraft("The week could not be drafted just now."))
+                .finally(() => setDrafting(false));
+            }}
+          >
+            {drafting ? "Drafting…" : "Draft the week"}
+          </button>
+        </div>
+        {draft ? <p className="text-pretty whitespace-pre-wrap text-sm text-muted">{draft}</p> : null}
+        {shown.length === 0 ? <p className="text-sm text-muted">Nothing uses that tag.</p> : null}
+        {shown.map((preset) => {
           const active = preset.id === presetId;
+          const row = stats[preset.id];
+          const plays = row?.plays ?? 0;
+          const saves = row?.saves ?? 0;
+          const stemSaves = row?.stemSaves ?? 0;
           return (
             <button
               key={preset.id}
@@ -60,15 +163,40 @@ export function PresetDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               className={`rounded-md border px-3 py-3 text-left ${active ? "border-gold bg-bg" : "border-line bg-bg/40"}`}
               onClick={() => {
                 applyPreset(preset.id);
+                notePresetOpen(preset.id);
+                if (useBath.getState().playing) notePresetPlay(preset.id);
                 onOpenChange(false);
               }}
             >
               <span className="flex items-baseline justify-between gap-3">
-                <span className="font-display text-2xl text-fg">{preset.name}</span>
-                <span className="shrink-0 text-xs tabular-nums text-muted">{preset.bowls.length} bowls</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="font-display text-2xl text-fg">{preset.name}</span>
+                  {preset.tags.includes("New") ? <span className="shrink-0 text-[10px] tracking-wide text-gold uppercase">New</span> : null}
+                  {preset.source === "ai" ? <span className="shrink-0 text-[10px] tracking-wide text-gold uppercase">AI generated</span> : null}
+                  {presetIsDownload(preset) ? <DownloadMark /> : null}
+                </span>
+                <span className="shrink-0 text-xs tabular-nums text-muted">
+                  {preset.bowls.length} bowls
+                  {preset.ears && preset.ears.length > 1 ? ` · ${preset.ears.length} ears` : ""}
+                </span>
               </span>
               <span className="mt-1 block text-pretty text-sm text-muted">{preset.blurb}</span>
-              <span className="mt-2 block text-xs text-gold">{preset.tags.join(" · ")}</span>
+              <span className="mt-2 flex flex-wrap gap-1">
+                {preset.tags.map((item) => (
+                  <span
+                    key={item}
+                    className={`rounded-full border px-1.5 py-0.5 text-[10px] ${item === "New" || item === "Dome" ? "border-gold text-gold" : "border-line text-muted"}`}
+                  >
+                    {item}
+                  </span>
+                ))}
+              </span>
+              <span className="mt-1 block text-xs tabular-nums text-muted">
+                {plays} {plays === 1 ? "play" : "plays"} · {saves} {saves === 1 ? "save" : "saves"}
+                {stemSaves > 0 ? ` · ${stemSaves} ${stemSaves === 1 ? "stem save" : "stem saves"}` : ""}
+                {(row?.ups ?? 0) > 0 ? ` · ${row?.ups} up` : ""}
+                {(row?.downs ?? 0) > 0 ? ` · ${row?.downs} down` : ""}
+              </span>
             </button>
           );
         })}
@@ -77,335 +205,77 @@ export function PresetDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
-export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function RoomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const settings = useBath((state) => state.settings);
+  const bowls = useBath((state) => state.bowls);
   const setSettings = useBath((state) => state.setSettings);
-  const range = periodRange(settings.loopMode);
-  const modeCopy = MODES.find((mode) => mode.id === settings.loopMode)?.copy;
+  const setRoom = useBath((state) => state.setRoom);
+  const room = getRoom(settings.roomShape);
+  const minSize = minRoomSize(settings, bowls);
 
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title="Session">
+    <Modal open={open} onOpenChange={onOpenChange} title="Room">
       <div className="grid gap-6">
         <section className="grid gap-3">
-          <h2 className="font-display text-2xl text-fg">Phrase</h2>
+          <InfoPoint hint={`${room.blurb} Bowls and ears keep their size when the room changes. A wider shape opens floor you can drag into. The room will not shrink inside their combined diameter. Bowls stop at each other and at ears. Cones and boxes stay above the floor. Starts large. The walls stay glass.`}>
+            <h2 className="font-display text-2xl text-fg">Shape</h2>
+          </InfoPoint>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {MODES.map((mode) => (
+            {ROOMS.map((item) => (
               <button
-                key={mode.id}
+                key={item.id}
                 type="button"
-                className={`h-11 rounded-md border text-sm ${settings.loopMode === mode.id ? "border-gold text-gold" : "border-line text-fg"}`}
-                onClick={() => setSettings({ loopMode: mode.id })}
+                data-shape={item.id}
+                aria-pressed={settings.roomShape === item.id}
+                className={`min-h-11 rounded-md border px-2 py-2 text-sm ${settings.roomShape === item.id ? "border-gold text-gold" : "border-line text-fg"}`}
+                onClick={() => setRoom(item.id)}
               >
-                {mode.label}
+                {item.label}
+                {FRESH_SHAPES.has(item.id) ? <span className="mt-0.5 block text-xs text-gold">New!</span> : null}
               </button>
             ))}
           </div>
-          <p className="text-pretty text-sm text-muted">{modeCopy}</p>
-          {range ? (
-            <Slider
-              label={
-                settings.loopMode === "mallet"
-                  ? "Strike cycle"
-                  : settings.loopMode === "canon"
-                    ? "Canon length"
-                    : settings.loopMode === "tide"
-                      ? "Tide length"
-                      : "Breath length"
-              }
-              min={range[0]}
-              max={range[1]}
-              step={1}
-              value={settings.period}
-              display={`${Math.round(settings.period)} s`}
-              onChange={(period) => setSettings({ period })}
-            />
-          ) : (
-            <p className="text-sm text-muted">Sustain does not restart. It simply continues.</p>
-          )}
-        </section>
-
-        <section className="grid gap-3">
-          <h2 className="font-display text-2xl text-fg">Interference</h2>
           <Slider
-            label="Veil"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(settings.veil * 100)}
-            display={`${Math.round(settings.veil * 100)}`}
-            onChange={(value) => setSettings({ veil: value / 100 })}
-          />
-          <Slider
-            label="Veil beat"
-            min={15}
-            max={180}
-            step={1}
-            value={Math.round(settings.veilHz * 100)}
-            display={`${settings.veilHz.toFixed(2)} Hz`}
-            onChange={(value) => setSettings({ veilHz: value / 100 })}
-          />
-          <p className="text-pretty text-xs text-muted">
-            A quiet twin on every bowl. Each one is detuned slightly differently, so the beats don’t lock.
-          </p>
-          <Slider
-            label="Crown shimmer"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(settings.shimmer * 100)}
-            display={`${Math.round(settings.shimmer * 100)}`}
-            onChange={(value) => setSettings({ shimmer: value / 100 })}
-          />
-          <Slider
-            label="Room width"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(settings.width * 100)}
-            display={`${Math.round(settings.width * 100)}`}
-            onChange={(value) => setSettings({ width: value / 100 })}
-          />
-          <Slider
-            label="Room depth"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(settings.depth * 100)}
-            display={`${Math.round(settings.depth * 100)}`}
-            onChange={(value) => setSettings({ depth: value / 100 })}
-          />
-          <p className="text-pretty text-xs text-muted">
-            The bowls and the ear share this room. What you see is what you hear, and what gets recorded.
-          </p>
-          <Toggle
-            label="Hemisphere bed"
-            hint="Two quiet sines, hard left and right, a fraction apart. Raise the beat only on headphones — on speakers it pulses."
-            checked={settings.binaural}
-            onCheckedChange={(binaural) => setSettings({ binaural })}
-          />
-          {settings.binaural ? (
-            <>
-              <Slider
-                label="Bed pitch"
-                min={70}
-                max={220}
-                step={1}
-                value={settings.binauralCarrier}
-                display={`${Math.round(settings.binauralCarrier)} Hz`}
-                onChange={(binauralCarrier) => setSettings({ binauralCarrier })}
-              />
-              <Slider
-                label="Bed beat"
-                min={2}
-                max={80}
-                step={1}
-                value={Math.round(settings.binauralBeat * 10)}
-                display={`${settings.binauralBeat.toFixed(1)} Hz`}
-                onChange={(value) => setSettings({ binauralBeat: value / 10 })}
-              />
-              <Slider
-                label="Bed level"
-                min={0}
-                max={100}
-                step={1}
-                value={Math.round(settings.binauralLevel * 100)}
-                display={`${Math.round(settings.binauralLevel * 100)}`}
-                onChange={(value) => setSettings({ binauralLevel: value / 100 })}
-              />
-            </>
-          ) : null}
-        </section>
-
-        <section className="grid gap-3">
-          <h2 className="font-display text-2xl text-fg">Glass hall</h2>
-          <Slider
-            label="Hall"
-            min={0}
+            label="Room size"
+            fresh
+            guideId="room-size"
+            hint="Grows or shrinks the floor. Bowls and ears can be dragged anywhere on the new floor, out to the walls. The room will not shrink inside them, and they stop when they meet."
+            min={Math.min(80, Math.max(10, Math.min(Math.round(settings.size * 10), Math.round(minSize * 10))))}
             max={80}
             step={1}
-            value={Math.round(settings.wet * 100)}
-            display={`${Math.round(settings.wet * 100)}`}
-            onChange={(value) => setSettings({ wet: value / 100 })}
-          />
-          <Slider
-            label="Hall size"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(settings.hall * 100)}
-            display={`${Math.round(settings.hall * 100)}`}
-            onChange={(value) => setSettings({ hall: value / 100 })}
-          />
-          <Slider
-            label="Silk"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(settings.air * 100)}
-            display={`${Math.round(settings.air * 100)}`}
-            onChange={(value) => setSettings({ air: value / 100 })}
-          />
-          <p className="text-pretty text-xs text-muted">
-            The dry crystal stays full. The hall only sits behind it. Silk trims the top if a small bowl glares.
-          </p>
-          <Slider
-            label="Transpose"
-            min={-100}
-            max={100}
-            step={1}
-            value={settings.transpose}
-            display={`${settings.transpose > 0 ? "+" : ""}${settings.transpose} cents`}
-            onChange={(transpose) => setSettings({ transpose })}
+            value={Math.round(settings.size * 10)}
+            display={`${settings.size.toFixed(1)}×`}
+            onChange={(value) => setSettings({ size: value / 10 })}
           />
         </section>
-
         <section className="grid gap-3">
-          <h2 className="font-display text-2xl text-fg">Playback</h2>
-          <Toggle
-            label="Background session"
-            hint="The bowls always play through the speakers. Leave this on to keep a lock-screen title when the tab is in the background."
-            checked={settings.output === "session"}
-            onCheckedChange={(on) => {
-              const output = on ? "session" : "direct";
-              setSettings({ output });
-              bathEngine.setOutput(output);
-            }}
-          />
-          <Toggle
-            label="Keep screen awake"
-            hint="Optional. The sound does not need the screen to stay on."
-            checked={settings.awake}
-            onCheckedChange={(awake) => setSettings({ awake })}
-          />
-          <Slider
-            label="Volume"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(settings.volume * 100)}
-            display={`${Math.round(settings.volume * 100)}`}
-            onChange={(value) => setSettings({ volume: value / 100 })}
-          />
+          <InfoPoint hint="Choosing a shape sets these ten. Move any of them afterward. Decay is the tail. Early reflections are the first bounce. Flutter and slapback are echoes. Standing waves and bass bloom fatten the low end. Air loss dulls bowls that sit far from the ear. Envelopment wraps the tail around you.">
+            <h2 className="font-display text-2xl text-fg">How the room colors the sound</h2>
+          </InfoPoint>
+          {ROOM_EFFECTS.map((effect) => (
+            <Slider
+              key={effect.key}
+              label={effect.label}
+              hint={effect.hint}
+              guideId={effect.key}
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(settings[effect.key] * 100)}
+              display={`${Math.round(settings[effect.key] * 100)}`}
+              onChange={(value) => setSettings({ [effect.key]: value / 100 })}
+            />
+          ))}
         </section>
       </div>
     </Modal>
   );
 }
 
-export function LibraryDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const library = useBath((state) => state.library);
-  const activeName = useBath((state) => state.activeName);
-  const saveSoundscape = useBath((state) => state.saveSoundscape);
-  const loadSoundscape = useBath((state) => state.loadSoundscape);
-  const deleteSoundscape = useBath((state) => state.deleteSoundscape);
-  const importLibrary = useBath((state) => state.importLibrary);
-  const setNotice = useBath((state) => state.setNotice);
-  const [name, setName] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (open) setName(activeName ?? "");
-  }, [open, activeName]);
-
-  function downloadLibrary() {
-    const payload = exportPayload(useBath.getState().library);
-    const blob = new Blob([payload], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "lumen-bath-soundscapes.json";
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
+export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title="Soundscapes">
-      <form
-        className="grid gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          saveSoundscape(name);
-        }}
-      >
-        <label className="grid gap-1 text-sm text-muted">
-          Name
-          <input
-            className="h-11 rounded-md border border-line bg-surface-2 px-3 text-fg"
-            value={name}
-            maxLength={48}
-            placeholder="Evening quay"
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <button type="submit" className="h-11 rounded-md bg-gold text-sm font-medium text-bg">
-          Save in this browser
-        </button>
-        <div className="flex gap-2">
-          <button type="button" className="h-11 flex-1 rounded-md border border-line text-sm" onClick={downloadLibrary}>
-            Download
-          </button>
-          <button
-            type="button"
-            className="h-11 flex-1 rounded-md border border-line text-sm"
-            onClick={() => fileRef.current?.click()}
-          >
-            Import
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={async (event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (!file) return;
-              try {
-                const items = parseImport(await file.text());
-                if (!items.length) {
-                  setNotice("That file had no soundscapes.");
-                  return;
-                }
-                importLibrary(items);
-              } catch {
-                setNotice("Could not read that file.");
-              }
-            }}
-          />
-        </div>
-      </form>
-      <ul className="mt-4 grid gap-2">
-        {library.length === 0 ? (
-          <li className="text-pretty text-sm text-muted">Nothing saved yet. Name a bath and it stays on this device.</li>
-        ) : (
-          library.map((item) => <LibraryRow key={item.id} item={item} onLoad={loadSoundscape} onDelete={deleteSoundscape} />)
-        )}
-      </ul>
+    <Modal open={open} onOpenChange={onOpenChange} title="Session">
+      <SessionPanel />
     </Modal>
-  );
-}
-
-function LibraryRow({
-  item,
-  onLoad,
-  onDelete,
-}: {
-  item: Soundscape;
-  onLoad: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const when = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(item.updatedAt);
-  return (
-    <li className="flex items-center gap-2 rounded-md border border-line px-3 py-2">
-      <button type="button" className="min-w-0 flex-1 py-2 text-left" onClick={() => onLoad(item.id)}>
-        <span className="block truncate text-fg">{item.name}</span>
-        <span className="text-xs tabular-nums text-muted">
-          {item.bowls.length} bowls · {when}
-        </span>
-      </button>
-      <button type="button" className="h-11 px-2 text-sm text-muted" onClick={() => onDelete(item.id)}>
-        Delete
-      </button>
-    </li>
   );
 }

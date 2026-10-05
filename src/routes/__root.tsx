@@ -14,7 +14,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "A crystal singing-bowl sound bath. Place, tune, and save soundscapes that keep ringing in the background.",
+          "A crystal singing-bowl sound bath you can place, share, and remix. Daily baths follow what people play most.",
       },
       { name: "theme-color", content: "#071016" },
     ],

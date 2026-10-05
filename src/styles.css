@@ -221,6 +221,20 @@
   }
 }
 
+@keyframes pause-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-gold) 70%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
+.pause-pulse {
+  animation: pause-pulse 1.5s ease-in-out infinite;
+}
+
 .modal-sheet {
   position: fixed;
   z-index: 50;

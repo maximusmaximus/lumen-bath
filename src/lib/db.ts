@@ -137,6 +137,7 @@ async function createPgliteSql(): Promise<Sql> {
   // passes serialized on a global chain so concurrent callers never
   // double-apply.
   const migrate = async (): Promise<void> => {
+    // Includes share slugs (0005) and feedback inbox (0006). A reload of this module applies any new file.
     const migrations = import.meta.glob("/migrations/*.sql", {
       query: "?raw",
       import: "default",

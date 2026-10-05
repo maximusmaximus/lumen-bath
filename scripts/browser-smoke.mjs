@@ -90,13 +90,15 @@ function compareAgainstBaseline(verdict) {
 
 let browser = null;
 try {
-  browser = await chromium.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-dev-shm-usage"],
-  });
-
   const viewports = {};
   for (const vp of VIEWPORTS) {
+    // A WebGL page can wedge Chromium's capture pipeline. A fresh browser per
+    // viewport keeps the second screenshot (mobile) from failing after desktop.
+    await browser?.close();
+    browser = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    });
     const errors = { consoleErrors: [], pageErrors: [] };
     const page = await browser.newPage({
       viewport: { width: vp.width, height: vp.height },
@@ -109,7 +111,7 @@ try {
     // networkidle never settles and would burn the whole timeout.
     const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
     const status = resp?.status() ?? 0;
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(6000);
 
     const title = await page.title();
     const hasCanvas = (await page.locator("canvas").count()) > 0;

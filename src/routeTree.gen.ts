@@ -10,33 +10,128 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashRouteImport } from './routes/dash'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ApiCastRouteImport } from './routes/api/cast'
+import { Route as ApiRtcRouteImport } from './routes/api/rtc'
+import { Route as ApiShareCardRouteImport } from './routes/api/share-card'
+import { Route as SSplatRouteImport } from './routes/s/$'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashRoute = DashRouteImport.update({
+  id: '/dash',
+  path: '/dash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCastRoute = ApiCastRouteImport.update({
+  id: '/api/cast',
+  path: '/api/cast',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRtcRoute = ApiRtcRouteImport.update({
+  id: '/api/rtc',
+  path: '/api/rtc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShareCardRoute = ApiShareCardRouteImport.update({
+  id: '/api/share-card',
+  path: '/api/share-card',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SSplatRoute = SSplatRouteImport.update({
+  id: '/s/$',
+  path: '/s/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dash': typeof DashRoute
+  '/login': typeof LoginRoute
+  '/api/cast': typeof ApiCastRoute
+  '/api/rtc': typeof ApiRtcRoute
+  '/api/share-card': typeof ApiShareCardRoute
+  '/s/$': typeof SSplatRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dash': typeof DashRoute
+  '/login': typeof LoginRoute
+  '/api/cast': typeof ApiCastRoute
+  '/api/rtc': typeof ApiRtcRoute
+  '/api/share-card': typeof ApiShareCardRoute
+  '/s/$': typeof SSplatRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dash': typeof DashRoute
+  '/login': typeof LoginRoute
+  '/api/cast': typeof ApiCastRoute
+  '/api/rtc': typeof ApiRtcRoute
+  '/api/share-card': typeof ApiShareCardRoute
+  '/s/$': typeof SSplatRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/dash'
+    | '/login'
+    | '/api/cast'
+    | '/api/rtc'
+    | '/api/share-card'
+    | '/s/$'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/dash'
+    | '/login'
+    | '/api/cast'
+    | '/api/rtc'
+    | '/api/share-card'
+    | '/s/$'
+    | '/api/auth/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/dash'
+    | '/login'
+    | '/api/cast'
+    | '/api/rtc'
+    | '/api/share-card'
+    | '/s/$'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashRoute: typeof DashRoute
+  LoginRoute: typeof LoginRoute
+  ApiCastRoute: typeof ApiCastRoute
+  ApiRtcRoute: typeof ApiRtcRoute
+  ApiShareCardRoute: typeof ApiShareCardRoute
+  SSplatRoute: typeof SSplatRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +143,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dash': {
+      id: '/dash'
+      path: '/dash'
+      fullPath: '/dash'
+      preLoaderRoute: typeof DashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cast': {
+      id: '/api/cast'
+      path: '/api/cast'
+      fullPath: '/api/cast'
+      preLoaderRoute: typeof ApiCastRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/rtc': {
+      id: '/api/rtc'
+      path: '/api/rtc'
+      fullPath: '/api/rtc'
+      preLoaderRoute: typeof ApiRtcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/share-card': {
+      id: '/api/share-card'
+      path: '/api/share-card'
+      fullPath: '/api/share-card'
+      preLoaderRoute: typeof ApiShareCardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$': {
+      id: '/s/$'
+      path: '/s/$'
+      fullPath: '/s/$'
+      preLoaderRoute: typeof SSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashRoute: DashRoute,
+  LoginRoute: LoginRoute,
+  ApiCastRoute: ApiCastRoute,
+  ApiRtcRoute: ApiRtcRoute,
+  ApiShareCardRoute: ApiShareCardRoute,
+  SSplatRoute: SSplatRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
