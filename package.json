@@ -16,13 +16,19 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/audio/waves.test.ts src/lib/audio/ear-order.test.ts src/lib/share/slug.test.ts src/lib/community/feedback.test.ts src/lib/community/archive.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/audio/waves.test.ts src/lib/audio/ear-order.test.ts src/lib/share/slug.test.ts src/lib/community/feedback.test.ts src/lib/community/archive.test.ts src/lib/agent/scene-generator.test.ts src/lib/agent/pairing.test.ts src/lib/export/export.test.ts && node ./node_modules/tsx/dist/cli.mjs --test src/mcp/tools.test.ts",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "mcp": "node ./bin/lumen-mcp.mjs"
+  },
+  "bin": {
+    "lumen-bath-mcp": "./bin/lumen-mcp.mjs"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
     "@electric-sql/pglite": "^0.5.4",
     "@hookform/resolvers": "^5.7.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -96,6 +102,7 @@
     "globals": "^15.15.0",
     "playwright": "^1.62.0",
     "prettier": "^3.4.0",
+    "tsx": "^4.23.15",
     "typescript-eslint": "^8.56.1"
   }
 }
